@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { deliverSoon } from "@/server/deliverSoon";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { assertUser } from "@/lib/auth";
 import type { ActionResult } from "@/components/ui/client";
 
@@ -57,7 +58,7 @@ export async function updateProfessionalInfo(_: ActionResult, fd: FormData): Pro
 export async function saveService(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
     deliverSoon();
-    await assertUser();
+    const me = await assertUser();
     const id = fd.get("id") ? z.string().uuid().parse(fd.get("id")) : null;
     const parsed = z.object({
       name: z.string().trim().min(1, "Service name is required").max(120),
@@ -74,8 +75,13 @@ export async function saveService(_: ActionResult, fd: FormData): Promise<Action
       ? await supabase.from("profile_services").update(parsed.data).eq("id", id)
       : await supabase.from("profile_services").insert(parsed.data);
     if (error) return err(error);
+    // Give the member the last 30 days of matching updates straight away,
+    // instead of waiting for the next scheduled fetch.
+    let backfilled = 0;
+    if (parsed.data.category_id) backfilled = await backfillServiceUpdates(me.id, parsed.data.category_id, parsed.data.name);
     revalidatePath("/profile");
-    return { ok: true, message: id ? "Service updated." : "Service added." };
+    revalidatePath("/service-updates");
+    return { ok: true, message: `${id ? "Service updated." : "Service added."}${backfilled ? ` ${backfilled} recent update(s) added to your Service Updates.` : ""}` };
   } catch (e) { return err(e); }
 }
 
@@ -128,4 +134,24 @@ export async function removeAvatar(_prev: ActionResult): Promise<ActionResult> {
     revalidatePath("/", "layout");
     return { ok: true, message: "Profile photo removed." };
   } catch (e) { return err(e); }
+}
+
+/** Deliver recent stored updates for a category to one member (server-side, after their own save succeeded). */
+async function backfillServiceUpdates(userId: string, categoryId: string, serviceName: string) {
+  try {
+    const db = createAdminClient();
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const { data: updates } = await db.from("service_updates").select("id, category:service_categories(name)")
+      .eq("category_id", categoryId).gte("fetched_at", since).order("published_at", { ascending: false, nullsFirst: false }).limit(30);
+    if (!updates?.length) return 0;
+    const catName = (updates[0]!.category as unknown as { name: string } | null)?.name ?? "your category";
+    const { data, error } = await db.from("user_service_updates").upsert(
+      updates.map((u) => ({ user_id: userId, update_id: u.id, reason: `Matches your "${serviceName}" service (${catName})` })),
+      { onConflict: "user_id,update_id", ignoreDuplicates: true }).select("update_id");
+    if (error) { console.error("service update backfill failed", error.message); return 0; }
+    return data?.length ?? 0;
+  } catch (e) {
+    console.error("service update backfill crashed", e);
+    return 0;
+  }
 }
