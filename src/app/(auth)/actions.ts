@@ -30,7 +30,12 @@ export async function signIn(_: ActionResult, fd: FormData): Promise<ActionResul
     }
     return { ok: false, message: error?.message.toLowerCase().includes("banned") ? "This account has been deactivated." : "Invalid e-mail or password." };
   }
-  const { data: profile } = await supabase.from("profiles").select("role,status").eq("id", data.user.id).single();
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("role,status").eq("id", data.user.id).maybeSingle();
+  if (profileError) {
+    console.error("profile lookup failed", profileError);
+    await supabase.auth.signOut();
+    return { ok: false, message: `Your account could not be loaded (${profileError.code ?? "database error"}). Please contact the Super Admin.` };
+  }
   if (!profile) return { ok: false, message: "Profile not found." };
   if (profile.status === "pending" || profile.status === "rejected") redirect("/pending-approval");
   if (profile.status !== "approved") {
