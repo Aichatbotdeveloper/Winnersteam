@@ -65,3 +65,19 @@ The AI layer (`src/server/ai/provider.ts`) is a provider interface. Anthropic is
 - `CRON_SECRET` is set. A request to `/api/cron/dispatch` without it returns 401.
 - The Auth e-mail templates and SMTP are configured.
 - The Super Admin has been bootstrapped. No demo data exists in production (the seeder refuses non-local URLs).
+
+## 5. Current production setup (as configured)
+
+| Item | Value |
+|---|---|
+| App URL | https://winnersteam.automifyco.com (`winners-team.vercel.app` redirects here with 308) |
+| DNS (Namecheap, automifyco.com) | `CNAME winnersteam → <vercel-dns target shown in Vercel → Domains>` |
+| Vercel project | `winners-team`, linked to GitHub `Aichatbotdeveloper/Winnersteam` (pushes to `main` deploy automatically) |
+| Supabase Auth URLs | Site URL `https://winnersteam.automifyco.com`, redirect `https://winnersteam.automifyco.com/**` |
+| E-mail sender | `Winners Team <no-reply@winnersteam.automifyco.com>` via Resend (domain verified, region eu-west-1) |
+| Resend DNS (Namecheap) | `TXT resend._domainkey.winnersteam`, `CNAME rsend.winnersteam`, `CNAME send.winnersteam` |
+| Auth e-mails | Supabase custom SMTP → `smtp.resend.com:465`, user `resend`, password = Resend API key |
+| App notification e-mails | `RESEND_API_KEY` + `EMAIL_FROM` in Vercel; sent immediately after each action (Next.js `after()`), with the daily cron as a backstop |
+| E-mail templates | `supabase/templates/*` pasted into Supabase → Authentication → Emails |
+
+Super Admin tools: **Settings → General → Integrations** has "Send test e-mail to me" and "Deliver pending notifications now".

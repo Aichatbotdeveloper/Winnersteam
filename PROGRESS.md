@@ -43,6 +43,13 @@ Last updated: 22 Nov 2026
   - Organisation-wide live scoring: about 170 ms.
   - The client bundle contains no secrets.
 
+## Production status (live)
+
+- Live at **https://winnersteam.automifyco.com** (Vercel + Supabase), Super Admin bootstrapped.
+- E-mail: Supabase Auth e-mails and app notifications both delivered through Resend from `no-reply@winnersteam.automifyco.com`, confirmed received by the owner; branded templates installed.
+- Production fix applied: explicit Data API grants (newer Supabase projects do not expose tables automatically).
+- Remaining optional integrations: AI key for LEX and summaries, VAPID keys for browser push.
+
 ## Needs credentials or authorisation (implemented, not live-tested)
 
 - **Supabase production project:** none was created. The only project on the connected account ("TalentVault") belongs to another application and was not touched.
