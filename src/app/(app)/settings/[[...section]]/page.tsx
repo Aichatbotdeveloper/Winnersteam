@@ -9,6 +9,8 @@ import { CATEGORY_LABEL, CONSEQUENCE_COLOR, CONSEQUENCE_LABEL, CONSEQUENCE_LIMIT
 import { daysAgoIso, fmtDateTime } from "@/lib/format";
 import { serverEnv, env } from "@/lib/env";
 
+export const maxDuration = 60;
+
 export const metadata: Metadata = { title: "System Settings" };
 
 const SECTIONS = [

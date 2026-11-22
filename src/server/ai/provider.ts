@@ -15,7 +15,10 @@ export interface AIProvider {
   complete(opts: { system: string; messages: ChatTurn[]; maxTokens?: number; effort?: "low" | "medium" | "high" }): Promise<string>;
 }
 
-export class AIUnavailableError extends Error {}
+export class AIUnavailableError extends Error {
+  /** Per-attempt diagnostics (model, status, duration) for the Super Admin test. */
+  attempts: string[] = [];
+}
 
 class AnthropicProvider implements AIProvider {
   readonly name = "anthropic";
@@ -98,66 +101,96 @@ class GeminiProvider implements AIProvider {
   constructor(private apiKey: string, private configuredModel: string) {}
   get model() { return discoveredGeminiModel ?? this.configuredModel; }
 
-  private async call(model: string, body: unknown) {
+  private async call(model: string, body: unknown, ms: number) {
     return fetch(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": this.apiKey },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(ms),
     });
   }
 
-  private async candidates(): Promise<string[]> {
-    const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": this.apiKey }, signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
-    return rankGeminiModels(data.models ?? []);
+  private async candidates(): Promise<{ models: string[]; note: string }> {
+    try {
+      const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": this.apiKey }, signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) return { models: [], note: `model list: ${await GeminiProvider.describe(res)}` };
+      const data = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
+      const models = rankGeminiModels(data.models ?? []);
+      return { models, note: `model list: ${models.length} flash model(s) available` };
+    } catch (e) {
+      return { models: [], note: `model list: ${e instanceof Error ? e.message : "failed"}` };
+    }
   }
 
   private static async describe(res: Response) {
     const err = (await res.json().catch(() => ({}))) as GeminiResponse;
-    return `${res.status} ${err.error?.status ?? ""} ${err.error?.message ?? ""}`.trim();
+    return `${res.status} ${err.error?.status ?? ""} ${err.error?.message ?? ""}`.replace(/\s+/g, " ").trim().slice(0, 300);
+  }
+
+  /** Gemini 2.5 Flash models "think" by default; short help answers don't need it and it is much slower. */
+  private static config(model: string, maxTokens: number) {
+    const cfg: Record<string, unknown> = { maxOutputTokens: Math.max(maxTokens, 1024), temperature: 0.3 };
+    if (/2\.5-flash/.test(model)) cfg.thinkingConfig = { thinkingBudget: 0 };
+    return cfg;
   }
 
   async complete({ system, messages, maxTokens = 2000 }: Parameters<AIProvider["complete"]>[0]) {
-    const body = {
-      systemInstruction: { parts: [{ text: system }] },
-      contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-      generationConfig: { maxOutputTokens: Math.max(maxTokens, 1024), temperature: 0.3 },
-    };
-    // Try the preferred model (with one retry on a temporary error), then other
-    // available flash models: free-tier models are sometimes briefly overloaded.
+    const contents = messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+    // Preferred model first (one retry on a temporary error), then other available
+    // flash models — free-tier models are sometimes briefly overloaded or slow.
+    const started = Date.now();
+    const budgetMs = 40_000;
+    const attempts: string[] = [];
     const tried = new Set<string>();
     let order = [this.model];
-    let lastError = "";
     let fetchedList = false;
+    let rateLimited = false;
     for (let i = 0; i < order.length && tried.size < 4; i++) {
       const model = order[i]!;
       if (tried.has(model)) continue;
       tried.add(model);
       for (let attempt = 0; attempt < 2; attempt++) {
-        const res = await this.call(model, body);
-        if (res.ok) {
-          if (model !== this.configuredModel) discoveredGeminiModel = model;
-          return geminiText((await res.json()) as GeminiResponse);
+        const remaining = budgetMs - (Date.now() - started);
+        if (remaining < 3_000) break;
+        const t0 = Date.now();
+        let status = 0;
+        try {
+          const res = await this.call(model, { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: GeminiProvider.config(model, maxTokens) }, Math.min(20_000, remaining));
+          status = res.status;
+          if (res.ok) {
+            if (model !== this.configuredModel) discoveredGeminiModel = model;
+            return geminiText((await res.json()) as GeminiResponse);
+          }
+          const why = await GeminiProvider.describe(res);
+          attempts.push(`${model}: ${why} (${Date.now() - t0} ms)`);
+          console.error(`Gemini ${model} failed: ${why}`);
+          if (status === 400 || status === 401 || status === 403) {
+            const err = new AIUnavailableError(status === 400 ? "The AI request was rejected." : "AI provider credentials are invalid.");
+            err.attempts = attempts;
+            throw err;
+          }
+          if (status === 429) rateLimited = true;
+        } catch (e) {
+          if (e instanceof AIUnavailableError) throw e;
+          // Network error or timeout: treat as temporary and move on.
+          attempts.push(`${model}: ${e instanceof Error ? e.message : "network error"} (${Date.now() - t0} ms)`);
+          console.error(`Gemini ${model} error:`, e);
         }
-        lastError = await GeminiProvider.describe(res);
-        console.error(`Gemini ${model} failed: ${lastError}`);
-        if (res.status === 400 || res.status === 401 || res.status === 403) {
-          throw new AIUnavailableError(res.status === 400 ? "The AI request was rejected." : "AI provider credentials are invalid.");
-        }
-        // 404 (model retired) → move on; 429/5xx → short back-off, then retry once / move on.
-        if (res.status === 404 || attempt === 1) break;
-        await new Promise((r) => setTimeout(r, res.status === 429 ? 1500 : 800));
+        if (status === 404 || attempt === 1) break;
+        await new Promise((r) => setTimeout(r, status === 429 ? 1500 : 700));
       }
       if (!fetchedList) {
         fetchedList = true;
-        order = [...order, ...(await this.candidates()).filter((m) => !tried.has(m))];
+        const { models, note } = await this.candidates();
+        attempts.push(note);
+        order = [...order, ...models.filter((m) => !tried.has(m))];
       }
     }
-    throw new AIUnavailableError(/429/.test(lastError)
+    const err = new AIUnavailableError(rateLimited
       ? "The AI service is busy (free-tier limit reached). Please try again shortly."
       : "The AI service is temporarily unavailable. Please try again shortly.");
+    err.attempts = attempts;
+    throw err;
   }
 }
 
@@ -182,6 +215,7 @@ export async function testAIProvider() {
     const reply = await ai.complete({ system: "Reply with exactly: OK", messages: [{ role: "user", content: "Connection test" }], maxTokens: 50, effort: "low" });
     return { ok: true, message: `${ai.name} is working (model: ${ai.model}). Reply: "${reply.slice(0, 40)}"` };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "AI test failed" };
+    const detail = e instanceof AIUnavailableError && e.attempts.length ? ` Details: ${e.attempts.join(" | ")}` : "";
+    return { ok: false, message: `${e instanceof Error ? e.message : "AI test failed"}${detail}` };
   }
 }

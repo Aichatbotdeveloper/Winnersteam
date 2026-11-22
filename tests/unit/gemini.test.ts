@@ -48,3 +48,24 @@ describe("Gemini fallback behaviour", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("Gemini timeouts", () => {
+  it("treats a timeout as temporary and falls back instead of failing", async () => {
+    const { getAIProvider } = await import("@/server/ai/provider");
+    process.env.AI_PROVIDER = "gemini"; process.env.AI_API_KEY = "test-key"; process.env.AI_MODEL = "gemini-2.5-flash";
+    const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes("/models?")) return json(200, { models: [
+        { name: "models/gemini-2.5-flash", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-2.5-flash-lite", supportedGenerationMethods: ["generateContent"] } ] });
+      bodies.push(JSON.parse(String(init?.body)));
+      if (String(url).includes("flash-lite")) return json(200, { candidates: [{ content: { parts: [{ text: "OK" }] } }] });
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    }));
+    await expect(getAIProvider()!.complete({ system: "s", messages: [{ role: "user", content: "hi" }] })).resolves.toBe("OK");
+    // thinking is disabled for 2.5 flash models (faster answers)
+    expect((bodies[0]!.generationConfig as { thinkingConfig?: { thinkingBudget: number } }).thinkingConfig?.thinkingBudget).toBe(0);
+    vi.unstubAllGlobals();
+  });
+});

@@ -5,6 +5,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { AIUnavailableError, getAIProvider } from "@/server/ai/provider";
 import { ROLE_LABEL } from "@/lib/labels";
 
+export const maxDuration = 60;
+
 const body = z.object({ conversationId: z.string().uuid().nullable().optional(), message: z.string().trim().min(1).max(1000) });
 
 const MIN_RANK = 0.05;
