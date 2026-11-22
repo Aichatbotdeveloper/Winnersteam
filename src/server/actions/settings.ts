@@ -10,6 +10,7 @@ import { parseCsv } from "@/lib/csv";
 import { ingestServiceUpdates } from "@/server/serviceUpdates";
 import { dispatchNotifications, emailHtml, sendEmail } from "@/server/delivery";
 import { serverEnv } from "@/lib/env";
+import { testAIProvider } from "@/server/ai/provider";
 import type { ActionResult } from "@/components/ui/client";
 
 const fail = (e: unknown): ActionResult => ({ ok: false, message: e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : "Save failed" });
@@ -312,5 +313,13 @@ export async function deliverPendingNow(_prev: ActionResult): Promise<ActionResu
     await assertUser(["super_admin"]);
     const r = await dispatchNotifications(200);
     return { ok: true, message: `E-mail: ${r.email.sent} sent, ${r.email.failed} failed, ${r.email.skipped} skipped. Push: ${r.push.sent} sent.` };
+  } catch (e) { return fail(e); }
+}
+
+/** Super Admin: check the configured AI provider responds. */
+export async function testAI(_prev: ActionResult): Promise<ActionResult> {
+  try {
+    await assertUser(["super_admin"]);
+    return await testAIProvider();
   } catch (e) { return fail(e); }
 }

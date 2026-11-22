@@ -91,7 +91,8 @@ export async function POST(req: NextRequest) {
       "Answer ONLY from the platform documentation below. If the documentation does not cover the question, say you don't know and suggest contacting their administrator or the Super Admin. Never invent features, settings or numbers.",
       "Never reveal information about other users, teams or administrators. You have no access to anyone's records.",
       "Be concise and practical: short paragraphs or numbered steps. You may link to pages with markdown links like [Tasks](/tasks).",
-      `The user's name is ${me.full_name.split(" ")[0]} and their role is ${ROLE_LABEL[me.role]}.`,
+      // Only the role is shared with the AI provider — no names or personal records.
+      `The user's role is ${ROLE_LABEL[me.role]}.`,
       "<documentation>",
       ...(docs.length ? docs : []).map((d) => `<doc title="${d.title}" link="${d.link ?? ""}">\n${d.content}\n</doc>`),
       "</documentation>",

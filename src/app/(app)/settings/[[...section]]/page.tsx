@@ -82,6 +82,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
           <div className="mt-4 flex flex-wrap gap-2 border-t border-border-subtle pt-4">
             <ActionForm action={A.sendTestEmail}><SubmitButton variant="outline" icon="forward_to_inbox">Send test e-mail to me</SubmitButton></ActionForm>
             <ActionForm action={A.deliverPendingNow}><SubmitButton variant="outline" icon="send">Deliver pending notifications now</SubmitButton></ActionForm>
+            <ActionForm action={A.testAI}><SubmitButton variant="outline" icon="smart_toy">Test AI connection</SubmitButton></ActionForm>
           </div>
         </Card>
       </div>
@@ -326,7 +327,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
     body = (
       <div className="space-y-5">
         <Card className="p-5">
-          <CardHeader icon="smart_toy" title="LEX assistant" action={<Badge tone={aiOn ? "green" : "amber"}>{aiOn ? `AI provider: ${serverEnv().aiProvider} · ${serverEnv().aiModel || "claude-opus-5-5"}` : "AI provider not configured — knowledge-base answers only"}</Badge>} />
+          <CardHeader icon="smart_toy" title="LEX assistant" action={<Badge tone={aiOn ? "green" : "amber"}>{aiOn ? `AI provider: ${serverEnv().aiProvider}${serverEnv().aiModel ? ` · ${serverEnv().aiModel}` : ""}` : "AI provider not configured — knowledge-base answers only"}</Badge>} />
           <ActionForm action={A.saveLexSettings} className="mt-4 space-y-3">
             <Check name="enabled" label="LEX is enabled for all users" checked={s["lex.enabled"] !== false} />
             <Field label="Welcome message"><textarea name="welcome" rows={2} maxLength={500} defaultValue={String(s["lex.welcome_message"] ?? "")} className="input" /></Field>
