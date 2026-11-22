@@ -1,24 +1,68 @@
 -- =============================================================================
--- OPTIONAL: run Winners Team scheduled processing inside Supabase (pg_cron).
--- Run once in the Supabase SQL editor of your production project after
--- enabling the pg_cron and pg_net extensions (Database → Extensions).
--- Replace <SITE_URL> and <CRON_SECRET> below. Times are UTC (Lagos = UTC+1).
+-- WINNERS TEAM — hourly reminders & frequent delivery using Supabase pg_cron
+--
+-- Paste this whole file into Supabase → SQL Editor → + New query → Run.
+-- It contains NO secrets and is safe to run again (it replaces its own jobs).
+--
+-- What it schedules (times in UTC; Lagos = UTC+1):
+--   winners-reminders        every hour at :05  → creates due reminders (in-database)
+--   winners-dispatch         every 10 minutes   → app sends pending e-mails / push
+--   winners-service-updates  every 6 hours      → app fetches approved update sources
+-- Daily evaluations keep running from Vercel Cron.
+--
+-- Calls to the app use single-use tokens issued by the database
+-- (public.cron_issue_token), so no shared secret is stored here.
 -- =============================================================================
 
--- Reminders: hourly (the database decides which schedules are due; deduplicated).
-select cron.schedule('winners-reminders', '5 * * * *', $$ select public.cron_run_reminders(); $$);
+-- 1) Extensions (no-ops if already enabled)
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
 
--- Evaluations + automatic draws: daily at 00:15 Africa/Lagos (23:15 UTC).
-select cron.schedule('winners-evaluations', '15 23 * * *', $$ select public.cron_run_evaluations(); $$);
+-- 2) One-time tokens for database → app calls (same as migration 0014)
+create table if not exists public.cron_tokens (
+  token      text primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.cron_tokens enable row level security;
+revoke all on public.cron_tokens from anon, authenticated;
+grant all on public.cron_tokens to service_role;
 
--- E-mail / push delivery: every 10 minutes (needs the web app for Resend / Web Push).
-select cron.schedule('winners-dispatch', '*/10 * * * *', $$
-  select net.http_get(url := '<SITE_URL>/api/cron/dispatch', headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>'));
-$$);
+create or replace function public.cron_issue_token()
+returns text language plpgsql security definer set search_path = '' as $$
+declare t text := encode(extensions.gen_random_bytes(32), 'hex');
+begin
+  delete from public.cron_tokens where created_at < now() - interval '1 hour';
+  insert into public.cron_tokens (token) values (t);
+  return t;
+end $$;
+revoke execute on function public.cron_issue_token() from public, anon, authenticated, service_role;
 
--- Service updates: every 6 hours.
-select cron.schedule('winners-service-updates', '20 */6 * * *', $$
-  select net.http_get(url := '<SITE_URL>/api/cron/service-updates', headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>'), timeout_milliseconds := 120000);
-$$);
+create or replace function public.cron_consume_token(p_token text)
+returns boolean language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.cron_tokens where token = p_token and created_at > now() - interval '5 minutes';
+  return found;
+end $$;
+revoke execute on function public.cron_consume_token(text) from public, anon, authenticated;
+grant execute on function public.cron_consume_token(text) to service_role;
 
--- To remove: select cron.unschedule('winners-reminders'); (etc.)
+-- 3) Replace any previous Winners Team jobs, then schedule them
+select cron.unschedule(jobid) from cron.job where jobname like 'winners-%';
+
+select cron.schedule('winners-reminders', '5 * * * *',
+  $job$ select public.cron_run_reminders(); $job$);
+
+select cron.schedule('winners-dispatch', '*/10 * * * *',
+  $job$ select net.http_get(
+          url := 'https://winnersteam.automifyco.com/api/cron/dispatch',
+          headers := jsonb_build_object('x-cron-token', public.cron_issue_token()),
+          timeout_milliseconds := 60000); $job$);
+
+select cron.schedule('winners-service-updates', '20 */6 * * *',
+  $job$ select net.http_get(
+          url := 'https://winnersteam.automifyco.com/api/cron/service-updates',
+          headers := jsonb_build_object('x-cron-token', public.cron_issue_token()),
+          timeout_milliseconds := 120000); $job$);
+
+-- 4) Show what is now scheduled
+select jobname, schedule, active from cron.job where jobname like 'winners-%' order by jobname;

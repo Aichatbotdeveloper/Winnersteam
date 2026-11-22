@@ -3,7 +3,7 @@
 -- Paste this whole file into Supabase → SQL Editor → New query → Run.
 -- It applies all migrations in supabase/migrations (generated from them; do not edit).
 -- Run it ONCE on a NEW, empty project. It is wrapped in a transaction: if anything
--- fails, nothing is applied.
+-- fails, nothing is applied. Then run supabase/sql/schedule_pg_cron.sql for scheduling.
 -- =============================================================================
 begin;
 
@@ -3164,7 +3164,43 @@ insert into public.knowledge_base_documents (slug, title, content, audience, lin
   ('quotes-management', $q$Managing motivational quotes (Super Admin)$q$, $q$Under Settings → Quotes the Super Admin can add, edit and deactivate quotes, and import many at once from a CSV file with the columns text, author, source and category. Categories: discipline, consistency, success, business, leadership, excellence, personal_growth, productivity. Every quote must have an accurate author. A different quote is shown at each sign-in, avoiding the user's most recent ones.$q$, '{super_admin}', $q$/settings/quotes$q$)
 on conflict (slug) do nothing;
 
--- Record the migrations so the Supabase CLI (supabase db push) treats them as applied.
+-- >>> 20261122001400_cron_tokens.sql
+-- =============================================================================
+-- WINNERS TEAM — 0014 One-time tokens for database-scheduled calls (pg_cron)
+-- pg_cron (running inside the database) calls the app's /api/cron/* routes
+-- with a single-use token that only the database can issue. No shared secret
+-- has to be copied into SQL. Tokens expire after 5 minutes and work once.
+-- Safe to run more than once.
+-- =============================================================================
+create table if not exists public.cron_tokens (
+  token      text primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.cron_tokens enable row level security;  -- no policies: API users can never read it
+revoke all on public.cron_tokens from anon, authenticated;
+grant all on public.cron_tokens to service_role;
+
+-- Issued by pg_cron jobs (run as the database owner). Not callable through the API.
+create or replace function public.cron_issue_token()
+returns text language plpgsql security definer set search_path = '' as $$
+declare t text := encode(extensions.gen_random_bytes(32), 'hex');
+begin
+  delete from public.cron_tokens where created_at < now() - interval '1 hour';
+  insert into public.cron_tokens (token) values (t);
+  return t;
+end $$;
+revoke execute on function public.cron_issue_token() from public, anon, authenticated, service_role;
+
+-- Checked by the app (service role): valid once, within 5 minutes.
+create or replace function public.cron_consume_token(p_token text)
+returns boolean language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.cron_tokens where token = p_token and created_at > now() - interval '5 minutes';
+  return found;
+end $$;
+revoke execute on function public.cron_consume_token(text) from public, anon, authenticated;
+grant execute on function public.cron_consume_token(text) to service_role;
+
 create schema if not exists supabase_migrations;
 create table if not exists supabase_migrations.schema_migrations (version text primary key, statements text[], name text);
 insert into supabase_migrations.schema_migrations (version, name) values ('20261122000100', 'core_identity') on conflict do nothing;
@@ -3180,4 +3216,5 @@ insert into supabase_migrations.schema_migrations (version, name) values ('20261
 insert into supabase_migrations.schema_migrations (version, name) values ('20261122001100', 'harden_function_grants') on conflict do nothing;
 insert into supabase_migrations.schema_migrations (version, name) values ('20261122001200', 'explicit_api_grants') on conflict do nothing;
 insert into supabase_migrations.schema_migrations (version, name) values ('20261122001300', 'more_quotes_and_help') on conflict do nothing;
+insert into supabase_migrations.schema_migrations (version, name) values ('20261122001400', 'cron_tokens') on conflict do nothing;
 commit;

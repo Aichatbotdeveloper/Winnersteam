@@ -7,6 +7,14 @@ import { ingestServiceUpdates } from "@/server/serviceUpdates";
 
 export const maxDuration = 300;
 
+/** pg_cron calls carry a single-use token issued by the database (no shared secret). */
+async function authorisedByToken(req: NextRequest) {
+  const token = req.headers.get("x-cron-token");
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) return false;
+  const { data } = await createAdminClient().rpc("cron_consume_token", { p_token: token });
+  return data === true;
+}
+
 function authorised(req: NextRequest) {
   const secret = serverEnv().cronSecret;
   if (!secret || secret.length < 16) return false;
@@ -25,7 +33,7 @@ function authorised(req: NextRequest) {
  * Requires `Authorization: Bearer $CRON_SECRET`.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ task: string }> }) {
-  if (!authorised(req)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  if (!authorised(req) && !(await authorisedByToken(req))) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   const { task } = await params;
   const db = createAdminClient();
   const result: Record<string, unknown> = {};

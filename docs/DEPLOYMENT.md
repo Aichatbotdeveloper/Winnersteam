@@ -82,4 +82,6 @@ The AI layer (`src/server/ai/provider.ts`) is a provider interface. Anthropic is
 
 | AI (LEX + summaries) | Gemini API key from Google AI Studio in `AI_API_KEY`; `AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash` (auto-fallback to other Flash/Flash-Lite models). A Google One / AI Pro subscription does not cover API usage — API billing is set per project in AI Studio. |
 
+| Scheduling | Supabase pg_cron (`supabase/sql/schedule_pg_cron.sql`): reminders hourly, e-mail/push delivery every 10 min, service updates every 6 h — calls to the app use single-use database tokens (no secret in SQL). Vercel Cron still runs daily evaluations. |
+
 Super Admin tools: **Settings → General → Integrations** has "Send test e-mail to me" and "Deliver pending notifications now" and "Test AI connection" (shows per-model diagnostics on failure).

@@ -303,6 +303,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"cron_tokens": {
+                  Row: {
+                    "created_at": string,"token": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"token": string
+                  }
+                  Update: {
+                    "created_at"?: string,"token"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"knowledge_base_documents": {
                   Row: {
                     "active": boolean,"audience": (Database["public"]['Enums']["app_role"])[],"content": string,"id": string,"link": string | null,"search": unknown,"slug": string,"title": string,"updated_at": string,"updated_by": string | null
@@ -1002,6 +1016,15 @@ isOneToOne: false
                            },
 "create_admin_invitation":
 { Args: { "p_email": string,"p_full_name": string,"p_job_title"?: string }; Returns: string
+                           },
+"cron_backfill_snapshots":
+{ Args: { "p_days"?: number }; Returns: number
+                           },
+"cron_consume_token":
+{ Args: { "p_token": string }; Returns: boolean
+                           },
+"cron_issue_token":
+{ Args: Record<PropertyKey, never>; Returns: string
                            },
 "cron_match_service_updates":
 { Args: Record<PropertyKey, never>; Returns: number
