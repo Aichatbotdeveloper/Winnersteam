@@ -49,7 +49,8 @@ Last updated: 22 Nov 2026
 - E-mail: Supabase Auth e-mails and app notifications both delivered through Resend from `no-reply@winnersteam.automifyco.com`, confirmed received by the owner; branded templates installed.
 - Production fix applied: explicit Data API grants (newer Supabase projects do not expose tables automatically).
 - AI: Google Gemini API (`AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash`), confirmed working live. If a model is busy or retired the app retries, then falls back to other available Flash/Flash-Lite models; LEX receives the full role-filtered help centre and cites its sources. Only the user's role is sent to the AI — no names or personal records.
-- Remaining optional items: VAPID keys for browser push; Supabase pg_cron (or Vercel Pro) for hourly reminders; approved RSS sources for service updates.
+- Browser push: VAPID keys in Vercel (private key sensitive), confirmed working live (test notification received). Users enable it per device under Notifications → Preferences.
+- Remaining optional items: Supabase pg_cron (or Vercel Pro) for hourly reminders; approved RSS sources for service updates.
 
 ## Needs credentials or authorisation (implemented, not live-tested)
 
