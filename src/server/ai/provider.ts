@@ -77,6 +77,11 @@ export function geminiText(res: GeminiResponse): string {
 
 /** Choose a current text "flash" model when the configured name no longer exists. */
 export function pickGeminiModel(models: { name: string; supportedGenerationMethods?: string[] }[]): string | null {
+  return rankGeminiModels(models)[0] ?? null;
+}
+
+/** All usable text "flash" models, best first (stable before preview, newest, full before lite). */
+export function rankGeminiModels(models: { name: string; supportedGenerationMethods?: string[] }[]): string[] {
   const ok = models.filter((m) => m.supportedGenerationMethods?.includes("generateContent")).map((m) => m.name.replace(/^models\//, ""))
     .filter((n) => /flash/.test(n) && !/(image|tts|audio|live|embedding|vision|exp|thinking)/.test(n));
   const stable = ok.filter((n) => !/preview/.test(n));
@@ -84,7 +89,8 @@ export function pickGeminiModel(models: { name: string; supportedGenerationMetho
   // Prefer the newest version number, then the full (non-lite) model.
   const ver = (n: string) => Number(n.match(/(\d+(?:\.\d+)?)/)?.[1] ?? 0);
   pool.sort((x, y) => ver(y) - ver(x) || Number(/lite/.test(x)) - Number(/lite/.test(y)) || x.length - y.length);
-  return pool[0] ?? null;
+  const rest = ok.filter((n) => !pool.includes(n));
+  return [...pool, ...rest];
 }
 
 class GeminiProvider implements AIProvider {
@@ -101,11 +107,16 @@ class GeminiProvider implements AIProvider {
     });
   }
 
-  private async discover(): Promise<string | null> {
+  private async candidates(): Promise<string[]> {
     const res = await fetch(`${GEMINI_BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": this.apiKey }, signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const data = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] };
-    return pickGeminiModel(data.models ?? []);
+    return rankGeminiModels(data.models ?? []);
+  }
+
+  private static async describe(res: Response) {
+    const err = (await res.json().catch(() => ({}))) as GeminiResponse;
+    return `${res.status} ${err.error?.status ?? ""} ${err.error?.message ?? ""}`.trim();
   }
 
   async complete({ system, messages, maxTokens = 2000 }: Parameters<AIProvider["complete"]>[0]) {
@@ -114,22 +125,39 @@ class GeminiProvider implements AIProvider {
       contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
       generationConfig: { maxOutputTokens: Math.max(maxTokens, 1024), temperature: 0.3 },
     };
-    let res = await this.call(this.model, body);
-    if (res.status === 404) {
-      // Configured model was retired or renamed: pick a current one automatically.
-      const next = await this.discover();
-      if (!next) throw new AIUnavailableError("No Gemini model is available for this API key.");
-      discoveredGeminiModel = next;
-      res = await this.call(next, body);
+    // Try the preferred model (with one retry on a temporary error), then other
+    // available flash models: free-tier models are sometimes briefly overloaded.
+    const tried = new Set<string>();
+    let order = [this.model];
+    let lastError = "";
+    let fetchedList = false;
+    for (let i = 0; i < order.length && tried.size < 4; i++) {
+      const model = order[i]!;
+      if (tried.has(model)) continue;
+      tried.add(model);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await this.call(model, body);
+        if (res.ok) {
+          if (model !== this.configuredModel) discoveredGeminiModel = model;
+          return geminiText((await res.json()) as GeminiResponse);
+        }
+        lastError = await GeminiProvider.describe(res);
+        console.error(`Gemini ${model} failed: ${lastError}`);
+        if (res.status === 400 || res.status === 401 || res.status === 403) {
+          throw new AIUnavailableError(res.status === 400 ? "The AI request was rejected." : "AI provider credentials are invalid.");
+        }
+        // 404 (model retired) → move on; 429/5xx → short back-off, then retry once / move on.
+        if (res.status === 404 || attempt === 1) break;
+        await new Promise((r) => setTimeout(r, res.status === 429 ? 1500 : 800));
+      }
+      if (!fetchedList) {
+        fetchedList = true;
+        order = [...order, ...(await this.candidates()).filter((m) => !tried.has(m))];
+      }
     }
-    if (res.status === 429) throw new AIUnavailableError("The AI service is busy (free-tier limit reached). Please try again shortly.");
-    if (res.status === 400 || res.status === 403) {
-      const err = (await res.json().catch(() => ({}))) as GeminiResponse;
-      console.error("Gemini error", res.status, err.error?.status, err.error?.message);
-      throw new AIUnavailableError(res.status === 403 ? "AI provider credentials are invalid." : "The AI request was rejected.");
-    }
-    if (!res.ok) throw new AIUnavailableError(`AI provider error (${res.status}).`);
-    return geminiText((await res.json()) as GeminiResponse);
+    throw new AIUnavailableError(/429/.test(lastError)
+      ? "The AI service is busy (free-tier limit reached). Please try again shortly."
+      : "The AI service is temporarily unavailable. Please try again shortly.");
   }
 }
 
