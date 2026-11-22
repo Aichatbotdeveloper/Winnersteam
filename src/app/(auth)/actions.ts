@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { deliverSoon } from "@/server/deliverSoon";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env } from "@/lib/env";
@@ -62,6 +63,7 @@ const registerSchema = z.object({
 }).refine((v) => v.password === v.confirm, { message: "Passwords do not match", path: ["confirm"] });
 
 export async function register(_: ActionResult, fd: FormData): Promise<ActionResult> {
+  deliverSoon();
   const raw = Object.fromEntries(["full_name", "email", "phone", "job_title", "team_name", "team_leader_name", "requested_specialisation", "password", "confirm", "consent"]
     .map((k) => [k, fd.get(k) ?? undefined]));
   const parsed = registerSchema.safeParse(raw);

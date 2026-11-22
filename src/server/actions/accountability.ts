@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { deliverSoon } from "@/server/deliverSoon";
 import { createClient } from "@/lib/supabase/server";
 import { assertUser } from "@/lib/auth";
 import type { ActionResult } from "@/components/ui/client";
@@ -20,6 +21,7 @@ export type SpinResult = {
  */
 export async function spinAccountability(eventId: string): Promise<SpinResult> {
   try {
+    deliverSoon();
     await assertUser(["team_member"]);
     const id = z.string().uuid().parse(eventId);
     const supabase = await createClient();

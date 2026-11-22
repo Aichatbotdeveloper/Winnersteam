@@ -79,6 +79,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
               <li key={l} className="flex items-center justify-between gap-2 rounded-lg bg-surface-alt px-3 py-2.5"><span><span className="block text-body-md text-ink">{l}</span><code className="text-[11px] text-muted-text">{vars}</code></span><Badge tone={ok ? "green" : "amber"}>{ok ? "Configured" : "Not configured"}</Badge></li>
             ))}
           </ul>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-border-subtle pt-4">
+            <ActionForm action={A.sendTestEmail}><SubmitButton variant="outline" icon="forward_to_inbox">Send test e-mail to me</SubmitButton></ActionForm>
+            <ActionForm action={A.deliverPendingNow}><SubmitButton variant="outline" icon="send">Deliver pending notifications now</SubmitButton></ActionForm>
+          </div>
         </Card>
       </div>
     );

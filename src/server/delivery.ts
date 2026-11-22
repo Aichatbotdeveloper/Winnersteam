@@ -18,7 +18,7 @@ ${body ? `<p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#4B5563
 </table></td></tr></table></body></html>`;
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+export async function sendEmail(to: string, subject: string, html: string) {
   const { resendApiKey, emailFrom } = serverEnv();
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -47,14 +47,18 @@ export async function dispatchNotifications(limit = 200) {
       await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "skipped", detail: emailOn ? "inactive account" : "e-mail provider not configured" });
       out.email.skipped++; continue;
     }
+    // Claim the row first (optimistic lock on `attempts`) so concurrent runs never double-send.
+    const { data: claimed } = await db.from("notifications").update({ attempts: n.attempts + 1 })
+      .eq("id", n.id).eq("email_status", "pending").eq("attempts", n.attempts).select("id");
+    if (!claimed?.length) continue;
     try {
       await sendEmail(user.email, `Winners Team: ${n.title}`, emailHtml(n.title, n.body, n.link));
-      await db.from("notifications").update({ email_status: "sent", attempts: n.attempts + 1 }).eq("id", n.id);
+      await db.from("notifications").update({ email_status: "sent" }).eq("id", n.id);
       await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "sent" });
       out.email.sent++;
     } catch (e) {
       const final = n.attempts + 1 >= 3;
-      await db.from("notifications").update({ email_status: final ? "failed" : "pending", attempts: n.attempts + 1 }).eq("id", n.id);
+      await db.from("notifications").update({ email_status: final ? "failed" : "pending" }).eq("id", n.id);
       await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "failed", detail: e instanceof Error ? e.message.slice(0, 300) : "error" });
       out.email.failed++;
     }
@@ -62,6 +66,9 @@ export async function dispatchNotifications(limit = 200) {
 
   const { data: pushes } = await db.from("notifications").select("id,user_id,title,body,link").eq("push_status", "pending").order("created_at").limit(limit);
   for (const n of pushes ?? []) {
+    const { data: claimedPush } = await db.from("notifications").update({ push_status: "skipped" })
+      .eq("id", n.id).eq("push_status", "pending").select("id");
+    if (!claimedPush?.length) continue;
     const { data: subs } = pushOn ? await db.from("push_subscriptions").select("*").eq("user_id", n.user_id) : { data: [] };
     if (!pushOn || !subs?.length) {
       await db.from("notifications").update({ push_status: "skipped" }).eq("id", n.id);

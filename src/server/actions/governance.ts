@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { deliverSoon } from "@/server/deliverSoon";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertUser } from "@/lib/auth";
@@ -19,6 +20,7 @@ function refresh() {
 
 export async function approveRegistration(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser(["super_admin"]);
     const member = uuid.parse(fd.get("member_id"));
     const admin = uuid.safeParse(fd.get("admin_id"));
@@ -33,6 +35,7 @@ export async function approveRegistration(_: ActionResult, fd: FormData): Promis
 
 export async function rejectRegistration(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser(["super_admin"]);
     const member = uuid.parse(fd.get("member_id"));
     const r = reason().safeParse(fd.get("reason"));
@@ -47,6 +50,7 @@ export async function rejectRegistration(_: ActionResult, fd: FormData): Promise
 
 export async function transferMember(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser(["super_admin"]);
     const member = uuid.parse(fd.get("member_id"));
     const admin = uuid.safeParse(fd.get("admin_id"));
@@ -63,6 +67,7 @@ export async function transferMember(_: ActionResult, fd: FormData): Promise<Act
 /** Administrators and the Super Admin may remove ANY team-member account (soft removal). */
 export async function removeMember(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser(["administrator", "super_admin"]);
     const member = uuid.parse(fd.get("member_id"));
     const r = reason().safeParse(fd.get("reason"));
@@ -80,6 +85,7 @@ export async function removeMember(_: ActionResult, fd: FormData): Promise<Actio
 
 export async function setAccountActive(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser(["super_admin"]);
     const user = uuid.parse(fd.get("user_id"));
     const active = fd.get("active") === "true";
@@ -143,6 +149,7 @@ export async function updateAdministrator(_: ActionResult, fd: FormData): Promis
 
 export async function sendAnnouncement(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     const me = await assertUser(["administrator", "super_admin"]);
     const scope = me.role === "super_admin" && fd.get("scope") === "organisation" ? "organisation" : "team";
     const supabase = await createClient();

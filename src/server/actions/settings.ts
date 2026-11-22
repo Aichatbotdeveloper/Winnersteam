@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { deliverSoon } from "@/server/deliverSoon";
 import { createClient } from "@/lib/supabase/server";
 import { assertUser } from "@/lib/auth";
 import { CONSEQUENCE_LIMITS } from "@/lib/labels";
 import { parseCsv } from "@/lib/csv";
 import { ingestServiceUpdates } from "@/server/serviceUpdates";
+import { dispatchNotifications, emailHtml, sendEmail } from "@/server/delivery";
+import { serverEnv } from "@/lib/env";
 import type { ActionResult } from "@/components/ui/client";
 
 const fail = (e: unknown): ActionResult => ({ ok: false, message: e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : "Save failed" });
@@ -127,6 +130,7 @@ export async function saveReminder(_: ActionResult, fd: FormData): Promise<Actio
 
 export async function sendReminderNow(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     const supabase = await su();
     const { data, error } = await supabase.rpc("send_reminder_now", { p_kind: z.string().parse(fd.get("kind")) });
     if (error) return fail(error);
@@ -137,6 +141,7 @@ export async function sendReminderNow(_: ActionResult, fd: FormData): Promise<Ac
 
 export async function runEvaluationsNow(_prev: ActionResult): Promise<ActionResult> {
   try {
+    deliverSoon();
     const supabase = await su();
     const { data, error } = await supabase.rpc("run_evaluations_now");
     if (error) return fail(error);
@@ -163,6 +168,7 @@ export async function saveSource(_: ActionResult, fd: FormData): Promise<ActionR
 
 export async function fetchSourcesNow(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser(["super_admin"]);
     const id = fd.get("id") ? z.string().uuid().parse(fd.get("id")) : undefined;
     const r = await ingestServiceUpdates(id);
@@ -286,5 +292,25 @@ export async function importQuotes(_prev: ActionResult, fd: FormData): Promise<A
     revalidatePath("/settings/quotes");
     const skipped = valid.length - fresh.length;
     return { ok: true, message: `Imported ${fresh.length} quote(s).${skipped ? ` ${skipped} duplicate(s) skipped.` : ""}${problems.length ? ` ${problems.length} invalid row(s) skipped (e.g. ${problems[0]}).` : ""}` };
+  } catch (e) { return fail(e); }
+}
+
+/** Super Admin: send a test e-mail to themselves through the configured provider. */
+export async function sendTestEmail(_prev: ActionResult): Promise<ActionResult> {
+  try {
+    const me = await assertUser(["super_admin"]);
+    const cfg = serverEnv();
+    if (!cfg.resendApiKey || !cfg.emailFrom) return { ok: false, message: "E-mail is not configured (RESEND_API_KEY / EMAIL_FROM)." };
+    await sendEmail(me.email, "Winners Team: test e-mail", emailHtml("Your e-mail delivery works", `This test was sent from ${cfg.emailFrom}. Notification e-mails to your team will arrive the same way.`, "/settings"));
+    return { ok: true, message: `Test e-mail sent to ${me.email}. Check your inbox (and spam folder).` };
+  } catch (e) { return fail(e); }
+}
+
+/** Super Admin: deliver all pending e-mail/push notifications now. */
+export async function deliverPendingNow(_prev: ActionResult): Promise<ActionResult> {
+  try {
+    await assertUser(["super_admin"]);
+    const r = await dispatchNotifications(200);
+    return { ok: true, message: `E-mail: ${r.email.sent} sent, ${r.email.failed} failed, ${r.email.skipped} skipped. Push: ${r.push.sent} sent.` };
   } catch (e) { return fail(e); }
 }

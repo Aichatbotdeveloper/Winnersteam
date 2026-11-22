@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { deliverSoon } from "@/server/deliverSoon";
 import { createClient } from "@/lib/supabase/server";
 import { assertUser } from "@/lib/auth";
 import type { ActionResult } from "@/components/ui/client";
@@ -18,6 +19,7 @@ function err(e: unknown): ActionResult {
 
 export async function updateBasicInfo(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     const me = await assertUser();
     const parsed = z.object({
       full_name: z.string().trim().min(2, "Full name is required").max(120),
@@ -37,6 +39,7 @@ export async function updateBasicInfo(_: ActionResult, fd: FormData): Promise<Ac
 
 export async function updateProfessionalInfo(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     const me = await assertUser();
     const parsed = z.object({
       specialisations: list(20, 80), skills: list(40, 60), business_interests: list(20, 80),
@@ -53,6 +56,7 @@ export async function updateProfessionalInfo(_: ActionResult, fd: FormData): Pro
 
 export async function saveService(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser();
     const id = fd.get("id") ? z.string().uuid().parse(fd.get("id")) : null;
     const parsed = z.object({
@@ -77,6 +81,7 @@ export async function saveService(_: ActionResult, fd: FormData): Promise<Action
 
 export async function deleteService(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
+    deliverSoon();
     await assertUser();
     const id = z.string().uuid().parse(fd.get("id"));
     const supabase = await createClient();
