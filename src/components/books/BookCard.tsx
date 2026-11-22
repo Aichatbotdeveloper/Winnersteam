@@ -34,8 +34,8 @@ export function BookCard({ book, progress, reason, recId, notes }: { book: Book;
         {reason && <p className="mt-2 flex gap-1 text-body-sm text-secondary"><Icon name="lightbulb" className="text-[16px]" />Why: {reason}</p>}
         {book.description && <p className="mt-1.5 line-clamp-2 text-body-sm text-muted-text">{book.description}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-3 text-body-sm">
-          {book.reading_url && <a href={book.reading_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-semibold text-link hover:underline"><Icon name="open_in_new" className="text-[15px]" />Read online</a>}
-          {book.free_download_url && <a href={book.free_download_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-semibold text-on-tertiary-container hover:underline"><Icon name="download" className="text-[15px]" />Legal free download</a>}
+          {book.reading_url && <a href={book.reading_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-semibold text-link hover:underline"><Icon name={book.license === "commercial" ? "search" : "open_in_new"} className="text-[15px]" />{book.license === "commercial" ? "Find this book" : "Read online"}</a>}
+          {book.free_download_url && <a href={book.free_download_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 font-semibold text-on-tertiary-container hover:underline"><Icon name="download" className="text-[15px]" />Free PDF download</a>}
         </div>
         {progress && (
           <div className="mt-3 flex items-center gap-2">

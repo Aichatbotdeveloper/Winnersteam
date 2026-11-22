@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ActionForm, SubmitButton } from "@/components/ui/client";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Field, Icon } from "@/components/ui";
 import { register } from "../actions";
 
@@ -28,8 +29,8 @@ export default function RegisterPage() {
             <Field label="Team name"><input name="team_name" maxLength={120} className="input" /></Field>
             <Field label="Team leader's name"><input name="team_leader_name" maxLength={120} className="input" /></Field>
             <Field label="Specialisation / services offered" className="md:col-span-2"><input name="requested_specialisation" maxLength={200} className="input" placeholder="e.g. Website development, digital marketing" /></Field>
-            <Field label="Password *" hint="At least 10 characters with letters and numbers."><input name="password" type="password" required minLength={10} autoComplete="new-password" className="input" /></Field>
-            <Field label="Confirm password *"><input name="confirm" type="password" required autoComplete="new-password" className="input" /></Field>
+            <Field label="Password *" hint="At least 10 characters with letters and numbers."><PasswordInput name="password" required minLength={10} autoComplete="new-password" className="input" /></Field>
+            <Field label="Confirm password *"><PasswordInput name="confirm" required autoComplete="new-password" className="input" /></Field>
           </div>
           <label className="mt-5 flex items-start gap-2 text-body-md text-muted-text">
             <input type="checkbox" name="consent" className="mt-1 accent-secondary" required />

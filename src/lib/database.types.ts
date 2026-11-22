@@ -1051,6 +1051,9 @@ isOneToOne: false
               "created_at": string,"email": string,"full_name": string,"id": string,"job_title": string,"member_count": number,"status": Database["public"]['Enums']["account_status"]
             }[]
                            },
+"make_administrator":
+{ Args: { "p_user": string }; Returns: undefined
+                           },
 "mark_all_notifications_read":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },

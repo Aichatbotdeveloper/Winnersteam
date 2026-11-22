@@ -62,6 +62,11 @@ export function navFor(role: Role): NavSection[] {
         { href: "/team", label: "My Team Members", icon: "groups" },
         { href: "/reports", label: "Team Reports", icon: "insights" },
       ] },
+      // Administrators also get their own personal workspace (same tools as members).
+      { title: "My Workspace", items: [
+        ...productivity.items,
+        { href: "/performance", label: "My Performance", icon: "monitoring" },
+      ] },
       { title: "Governance", items: [
         { href: "/admin/announcements", label: "Team Announcements", icon: "campaign" },
         { href: "/admin/remove-member", label: "Remove a Team Member", icon: "person_remove" },

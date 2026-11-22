@@ -174,3 +174,18 @@ export async function correctPerformance(_: ActionResult, fd: FormData): Promise
     return { ok: true, message: "Performance recomputed as a new audited version." };
   } catch (e) { return fail(e); }
 }
+
+/** Super Admin: turn an existing team-member account (pending or approved) into an administrator. */
+export async function makeAdministrator(_prev: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    deliverSoon();
+    await assertUser(["super_admin"]);
+    const user = uuid.parse(fd.get("user_id"));
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("make_administrator", { p_user: user });
+    if (error) return fail(error);
+    refresh();
+    revalidatePath(`/team/${user}`);
+    return { ok: true, message: "Done — this person is now an administrator. They have been notified and can manage a team." };
+  } catch (e) { return fail(e); }
+}

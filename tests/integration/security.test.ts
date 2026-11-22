@@ -185,3 +185,21 @@ describe("additional isolation checks", () => {
     expect(s.data ?? []).toEqual([]);
   });
 });
+
+describe("make administrator", () => {
+  it("only the Super Admin can turn a registered team member into an administrator", async () => {
+    const addr = email("promote");
+    const id = await createAuthUser(addr, { full_name: "Future Admin" });
+    const denied = await adminA.client.rpc("make_administrator", { p_user: id });
+    expect(denied.error).not.toBeNull();
+    const ok = await superA.client.rpc("make_administrator", { p_user: id });
+    expect(ok.error).toBeNull();
+    const { data } = await service.from("profiles").select("role,status").eq("id", id).single();
+    expect(data).toEqual({ role: "administrator", status: "approved" });
+    // cannot promote an administrator or the Super Admin
+    expect((await superA.client.rpc("make_administrator", { p_user: adminA.id })).error).not.toBeNull();
+    // the new administrator can sign in and see the admin-only RPCs
+    const c = await signIn(addr);
+    expect((await c.rpc("search_removable_members", { p_query: "zz" })).error).toBeNull();
+  });
+});

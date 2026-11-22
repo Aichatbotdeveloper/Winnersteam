@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar, Badge, Card, PageHeader, Pagination, Table, Td, Th, buttonClass } from "@/components/ui";
-import { ActiveToggle, RemoveMemberButton } from "@/components/governance/Forms";
+import { ActiveToggle, MakeAdminButton, RemoveMemberButton } from "@/components/governance/Forms";
 import { ROLE_LABEL, STATUS_LABEL } from "@/lib/labels";
 import { fmtDate } from "@/lib/format";
 
@@ -45,6 +45,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               <Td className="text-muted-text">{fmtDate(u.created_at)}</Td>
               <Td className="text-right"><div className="flex justify-end gap-1">
                 {u.role !== "super_admin" && ["approved", "deactivated", "removed"].includes(u.status) && <ActiveToggle userId={u.id} active={u.status === "approved"} name={u.full_name} />}
+                {u.role === "team_member" && (u.status === "approved" || u.status === "pending") && <MakeAdminButton userId={u.id} name={u.full_name} />}
                 {u.role === "team_member" && u.status !== "removed" && <RemoveMemberButton memberId={u.id} name={u.full_name} />}
               </div></Td>
             </tr>

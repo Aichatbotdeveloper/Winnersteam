@@ -7,7 +7,7 @@ import { Badge, Card, CardHeader, EmptyState, Icon, PageHeader, Progress, Tabs }
 import { PerformanceView } from "@/components/performance/PerformanceView";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { TaskList, type TaskItem } from "@/components/tasks/TaskList";
-import { ActiveToggle, CorrectionButton, RemoveMemberButton, TransferButton } from "@/components/governance/Forms";
+import { ActiveToggle, CorrectionButton, MakeAdminButton, RemoveMemberButton, TransferButton } from "@/components/governance/Forms";
 import { CONSEQUENCE_ICON, PROSPECTING_LABEL, consequenceText } from "@/lib/labels";
 import { addDays, fmtDate, nowTimeInOrg, num, pct, todayInOrg, weekStart, monthStart } from "@/lib/format";
 
@@ -112,6 +112,7 @@ export default async function MemberDetail({ params, searchParams }: { params: P
         actions={member.role === "team_member" ? <>
           {isSuper && member.status === "approved" && <TransferButton memberId={id} name={member.full_name} admins={(admins.data ?? []) as never} currentAdmin={assignment.data?.administrator_id} />}
           {isSuper && <CorrectionButton userId={id} />}
+          {isSuper && member.status === "approved" && <MakeAdminButton userId={id} name={member.full_name} />}
           {isSuper && ["approved", "deactivated", "removed"].includes(member.status) && <ActiveToggle userId={id} active={member.status === "approved"} name={member.full_name} />}
           {member.status !== "removed" && <RemoveMemberButton memberId={id} name={member.full_name} />}
         </> : undefined} />

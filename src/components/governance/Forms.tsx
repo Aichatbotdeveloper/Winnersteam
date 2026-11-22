@@ -3,7 +3,7 @@
 import { ActionForm, ModalButton, SubmitButton } from "@/components/ui/client";
 import { Field } from "@/components/ui";
 import {
-  approveRegistration, correctPerformance, inviteAdministrator, rejectRegistration, removeMember, sendAnnouncement,
+  approveRegistration, correctPerformance, makeAdministrator, inviteAdministrator, rejectRegistration, removeMember, sendAnnouncement,
   setAccountActive, transferMember, updateAdministrator,
 } from "@/server/actions/governance";
 import { todayInOrg } from "@/lib/format";
@@ -131,6 +131,19 @@ export function CorrectionButton({ userId }: { userId: string }) {
         </div>
         <Field label="Reason *" hint="Recomputes the period from current data as a new, audited snapshot version."><textarea name="reason" required minLength={5} rows={2} className="input" /></Field>
         <div className="flex justify-end"><SubmitButton icon="history_edu">Record correction</SubmitButton></div>
+      </ActionForm>
+    </ModalButton>
+  );
+}
+
+export function MakeAdminButton({ userId, name, size = "sm" }: { userId: string; name: string; size?: "sm" | "md" }) {
+  return (
+    <ModalButton label="Make administrator" title={`Make ${name} an administrator`} icon="admin_panel_settings" variant="outline" size={size}>
+      <ActionForm action={makeAdministrator} className="space-y-3">
+        <input type="hidden" name="user_id" value={userId} />
+        <p className="text-body-md text-muted-text">{name} will become an <strong>administrator</strong>: their account is approved, they stop reporting to an administrator, and they can manage the team members you assign to them. Their own tasks, goals and history are kept.</p>
+        <p className="text-body-sm text-muted-text">Use this for someone who registered through the public form. To add a new administrator who has no account yet, use <strong>Administrator Directory → Invite administrator</strong>.</p>
+        <div className="flex justify-end"><SubmitButton icon="admin_panel_settings">Make administrator</SubmitButton></div>
       </ActionForm>
     </ModalButton>
   );

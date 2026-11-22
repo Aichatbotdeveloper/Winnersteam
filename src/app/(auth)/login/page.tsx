@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ActionForm, SubmitButton } from "@/components/ui/client";
 import { Icon } from "@/components/ui";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { signIn } from "../actions";
 import { RoleShowcase } from "./RoleShowcase";
 
@@ -46,7 +47,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             </span>
             <span className="relative block">
               <Icon name="key" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint-text" />
-              <input name="password" type="password" required autoComplete="current-password" placeholder="••••••••••" className="input py-3 pl-10" />
+              <PasswordInput name="password" required autoComplete="current-password" placeholder="••••••••••" className="input py-3 pl-10" />
             </span>
           </label>
           <SubmitButton className="w-full py-3.5 text-body-lg" icon="login" pendingText="Signing in…">Sign in to Winners Team</SubmitButton>

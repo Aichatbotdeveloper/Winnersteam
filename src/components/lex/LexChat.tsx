@@ -32,11 +32,26 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-export function LexChat({ role, welcome, initialConversationId = null, initialMessages = [], compact = false }: {
+type Saved = { conversationId: string | null; messages: LexMessage[] };
+
+function loadSaved(key?: string): Saved | null {
+  if (!key || typeof window === "undefined") return null;
+  try { return JSON.parse(sessionStorage.getItem(key) ?? "null") as Saved | null; } catch { return null; }
+}
+
+export function LexChat({ role, welcome, initialConversationId = null, initialMessages = [], compact = false, persistKey, onReply }: {
   role: string; welcome: string; initialConversationId?: string | null; initialMessages?: LexMessage[]; compact?: boolean;
+  /** Keep the conversation for this browser session (survives page changes and refreshes). */
+  persistKey?: string;
+  /** Called when LEX finishes a reply (used to flag replies that arrive while minimised). */
+  onReply?: () => void;
 }) {
-  const [messages, setMessages] = useState<LexMessage[]>(initialMessages);
-  const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
+  const [messages, setMessages] = useState<LexMessage[]>(() => loadSaved(persistKey)?.messages ?? initialMessages);
+  const [conversationId, setConversationId] = useState<string | null>(() => loadSaved(persistKey)?.conversationId ?? initialConversationId);
+  useEffect(() => {
+    if (!persistKey) return;
+    try { sessionStorage.setItem(persistKey, JSON.stringify({ conversationId, messages: messages.slice(-40) })); } catch { /* storage unavailable */ }
+  }, [persistKey, conversationId, messages]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +71,7 @@ export function LexChat({ role, welcome, initialConversationId = null, initialMe
       if (!res.ok) throw new Error(data.error ?? "LEX is unavailable right now.");
       setConversationId(data.conversationId);
       setMessages((m) => [...m, { role: "assistant", content: data.reply, sources: data.sources, mode: data.mode }]);
+      onReply?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "LEX is unavailable right now.");
     } finally {
