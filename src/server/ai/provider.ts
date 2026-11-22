@@ -78,6 +78,14 @@ export function geminiText(res: GeminiResponse): string {
   return text;
 }
 
+/**
+ * Fallback order when the preferred model is busy: lighter "lite" models first
+ * (they usually have spare free-tier capacity), then the other full models.
+ */
+export function geminiFallbackOrder(ranked: string[]): string[] {
+  return [...ranked.filter((m) => /lite/.test(m)), ...ranked.filter((m) => !/lite/.test(m))];
+}
+
 /** Choose a current text "flash" model when the configured name no longer exists. */
 export function pickGeminiModel(models: { name: string; supportedGenerationMethods?: string[] }[]): string | null {
   return rankGeminiModels(models)[0] ?? null;
@@ -139,23 +147,25 @@ class GeminiProvider implements AIProvider {
     // Preferred model first (one retry on a temporary error), then other available
     // flash models — free-tier models are sometimes briefly overloaded or slow.
     const started = Date.now();
-    const budgetMs = 40_000;
+    const budgetMs = 45_000;
     const attempts: string[] = [];
     const tried = new Set<string>();
     let order = [this.model];
     let fetchedList = false;
     let rateLimited = false;
-    for (let i = 0; i < order.length && tried.size < 4; i++) {
+    for (let i = 0; i < order.length && tried.size < 7; i++) {
       const model = order[i]!;
       if (tried.has(model)) continue;
       tried.add(model);
-      for (let attempt = 0; attempt < 2; attempt++) {
+      // The preferred model gets one retry; fallbacks get a single quick attempt.
+      const maxAttempts = i === 0 ? 2 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const remaining = budgetMs - (Date.now() - started);
         if (remaining < 3_000) break;
         const t0 = Date.now();
         let status = 0;
         try {
-          const res = await this.call(model, { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: GeminiProvider.config(model, maxTokens) }, Math.min(20_000, remaining));
+          const res = await this.call(model, { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: GeminiProvider.config(model, maxTokens) }, Math.min(i === 0 ? 15_000 : 10_000, remaining));
           status = res.status;
           if (res.ok) {
             if (model !== this.configuredModel) discoveredGeminiModel = model;
@@ -176,14 +186,14 @@ class GeminiProvider implements AIProvider {
           attempts.push(`${model}: ${e instanceof Error ? e.message : "network error"} (${Date.now() - t0} ms)`);
           console.error(`Gemini ${model} error:`, e);
         }
-        if (status === 404 || attempt === 1) break;
+        if (status === 404 || attempt === maxAttempts - 1) break;
         await new Promise((r) => setTimeout(r, status === 429 ? 1500 : 700));
       }
       if (!fetchedList) {
         fetchedList = true;
         const { models, note } = await this.candidates();
         attempts.push(note);
-        order = [...order, ...models.filter((m) => !tried.has(m))];
+        order = [...order, ...geminiFallbackOrder(models).filter((m) => !tried.has(m))];
       }
     }
     const err = new AIUnavailableError(rateLimited
@@ -201,7 +211,7 @@ export function getAIProvider(): AIProvider | null {
     case "anthropic":
       return new AnthropicProvider(env.aiApiKey, env.aiModel || "claude-opus-5-5");
     case "gemini":
-      return new GeminiProvider(env.aiApiKey, env.aiModel || "gemini-2.5-flash");
+      return new GeminiProvider(env.aiApiKey, env.aiModel || "gemini-3.8-flash");
     default:
       return null;
   }

@@ -69,3 +69,11 @@ describe("Gemini timeouts", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("Gemini fallback order", () => {
+  it("tries lite models before other full models", async () => {
+    const { geminiFallbackOrder } = await import("@/server/ai/provider");
+    expect(geminiFallbackOrder(["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.8-flash-lite", "gemini-3.6-flash-lite"]))
+      .toEqual(["gemini-3.8-flash-lite", "gemini-3.6-flash-lite", "gemini-3.8-flash", "gemini-3.7-flash"]);
+  });
+});
