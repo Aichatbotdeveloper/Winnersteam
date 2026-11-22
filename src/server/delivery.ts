@@ -1,5 +1,5 @@
 import "server-only";
-import webpush from "web-push";
+import { sendNotification, setVapidDetails } from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { env, serverEnv } from "@/lib/env";
 
@@ -35,7 +35,7 @@ export async function dispatchNotifications(limit = 200) {
   const cfg = serverEnv();
   const emailOn = Boolean(cfg.resendApiKey && cfg.emailFrom);
   const pushOn = Boolean(env.vapidPublicKey && cfg.vapidPrivateKey && cfg.vapidSubject);
-  if (pushOn) webpush.setVapidDetails(cfg.vapidSubject, env.vapidPublicKey, cfg.vapidPrivateKey);
+  if (pushOn) setVapidDetails(cfg.vapidSubject, env.vapidPublicKey, cfg.vapidPrivateKey);
   const out = { email: { sent: 0, failed: 0, skipped: 0 }, push: { sent: 0, failed: 0, skipped: 0 }, emailConfigured: emailOn, pushConfigured: pushOn };
 
   const { data: emails } = await db.from("notifications").select("id,title,body,link,attempts,user:profiles!notifications_user_id_fkey(email,status)")
@@ -77,7 +77,7 @@ export async function dispatchNotifications(limit = 200) {
     let ok = 0;
     for (const s of subs) {
       try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        await sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           JSON.stringify({ title: n.title, body: n.body ?? "", link: n.link ?? "/notifications", tag: n.id }), { TTL: 3600 });
         ok++;
       } catch (e) {
@@ -96,13 +96,13 @@ export async function dispatchNotifications(limit = 200) {
 export async function sendTestPush(userId: string) {
   const cfg = serverEnv();
   if (!(env.vapidPublicKey && cfg.vapidPrivateKey && cfg.vapidSubject)) return { sent: 0, devices: 0, configured: false };
-  webpush.setVapidDetails(cfg.vapidSubject, env.vapidPublicKey, cfg.vapidPrivateKey);
+  setVapidDetails(cfg.vapidSubject, env.vapidPublicKey, cfg.vapidPrivateKey);
   const db = createAdminClient();
   const { data: subs } = await db.from("push_subscriptions").select("*").eq("user_id", userId);
   let sent = 0;
   for (const s of subs ?? []) {
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+      await sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         JSON.stringify({ title: "Winners Team", body: "Browser notifications are working on this device. 🎉", link: "/notifications", tag: "test-push" }), { TTL: 600 });
       sent++;
     } catch (e) {
