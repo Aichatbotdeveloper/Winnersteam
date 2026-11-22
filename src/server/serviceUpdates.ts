@@ -20,6 +20,19 @@ async function assertPublicUrl(raw: string) {
 }
 
 /** Fetch every active source, store new items, summarise (if AI configured) and match to users. */
+/** Run async work over items with a fixed concurrency (exported for tests). */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]!); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * Fetch every active source (in parallel), store new items and deliver them to
+ * matching members. Fast: no AI calls here — see summariseBacklog().
+ */
 export async function ingestServiceUpdates(onlySourceId?: string) {
   const db = createAdminClient();
   const { data: maxSetting } = await db.from("system_settings").select("value").eq("key", "service_updates.max_items_per_source").maybeSingle();
@@ -27,10 +40,8 @@ export async function ingestServiceUpdates(onlySourceId?: string) {
   let q = db.from("service_update_sources").select("*, category:service_categories(name)").eq("active", true);
   if (onlySourceId) q = q.eq("id", onlySourceId);
   const { data: sources } = await q;
-  const ai = getAIProvider();
-  const report: { source: string; status: string; added: number }[] = [];
 
-  for (const s of sources ?? []) {
+  const report = await mapLimit(sources ?? [], 6, async (s) => {
     let added = 0; let status = "ok";
     try {
       await assertPublicUrl(s.feed_url);
@@ -38,35 +49,59 @@ export async function ingestServiceUpdates(onlySourceId?: string) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.text()).slice(0, 3_000_000);
       const items = parseFeed(body).filter((i) => i.title && /^https?:\/\//.test(i.url)).slice(0, max);
-      const { data: existing } = await db.from("service_updates").select("url").in("url", items.map((i) => i.url));
-      const seen = new Set((existing ?? []).map((e) => e.url));
       const catName = (s.category as unknown as { name: string } | null)?.name ?? "your services";
-      for (const it of items.filter((i) => !seen.has(i.url))) {
-        let ai_summary: string | null = null; let recommended_action: string | null = null;
-        if (ai && it.excerpt) {
-          try {
-            const out = await ai.complete({
-              system: "You summarise professional industry news for a small services team. Use ONLY the supplied title and excerpt; never add facts. Reply in exactly two lines:\nSUMMARY: <one or two sentences>\nACTION: <one practical suggestion for a professional offering this service, or 'None'>",
-              messages: [{ role: "user", content: `Service category: ${catName}\nTitle: ${it.title}\nExcerpt: ${it.excerpt}` }], maxTokens: 400, effort: "low",
-            });
-            ai_summary = out.match(/SUMMARY:\s*(.+)/)?.[1]?.trim() ?? null;
-            const act = out.match(/ACTION:\s*(.+)/)?.[1]?.trim();
-            recommended_action = act && act.toLowerCase() !== "none" ? act : null;
-          } catch { /* summary is optional; keep the original excerpt */ }
-        }
-        const { error } = await db.from("service_updates").insert({
+      if (items.length) {
+        const { data, error } = await db.from("service_updates").upsert(items.map((it) => ({
           source_id: s.id, category_id: s.category_id, title: it.title.slice(0, 500), url: it.url, published_at: it.published_at,
-          excerpt: it.excerpt, ai_summary, recommended_action, summary_model: ai_summary ? ai!.model : null,
-          relevance_note: `Published by ${s.name}, an approved ${catName} source.`,
-        });
-        if (!error) added++;
+          excerpt: it.excerpt, relevance_note: `Published by ${s.name}, an approved ${catName} source.`,
+        })), { onConflict: "url", ignoreDuplicates: true }).select("id");
+        if (error) throw new Error(`save failed: ${error.message}`);
+        added = data?.length ?? 0;
       }
     } catch (e) {
       status = e instanceof Error ? e.message.slice(0, 200) : "failed";
     }
     await db.from("service_update_sources").update({ last_fetched_at: new Date().toISOString(), last_status: status }).eq("id", s.id);
-    report.push({ source: s.name, status, added });
-  }
+    return { source: s.name as string, status, added };
+  });
   const { data: matched } = await db.rpc("cron_match_service_updates");
-  return { sources: report, matched: matched ?? 0, ai: Boolean(ai) };
+  return { sources: report, matched: matched ?? 0, ai: Boolean(getAIProvider()) };
+}
+
+/**
+ * Add AI summaries to recent items that have none, newest first, within a time
+ * budget and stopping early when the AI service is busy (free-tier friendly).
+ * Unsummarised items simply show their original excerpt until a later run.
+ */
+export async function summariseBacklog(budgetMs: number, maxItems = 12) {
+  const ai = getAIProvider();
+  if (!ai) return { summarised: 0, ai: false };
+  const db = createAdminClient();
+  const started = Date.now();
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const { data: items } = await db.from("service_updates").select("id,title,excerpt,category:service_categories(name)")
+    .is("ai_summary", null).is("summary_model", null).not("excerpt", "is", null).gte("fetched_at", since)
+    .order("published_at", { ascending: false, nullsFirst: false }).limit(maxItems);
+  let summarised = 0;
+  for (const it of items ?? []) {
+    if (Date.now() - started > budgetMs - 12_000) break;
+    try {
+      const out = await ai.complete({
+        system: "You summarise professional industry news for a small services team. Use ONLY the supplied title and excerpt; never add facts. Reply in exactly two lines:\nSUMMARY: <one or two sentences>\nACTION: <one practical suggestion for a professional offering this service, or 'None'>",
+        messages: [{ role: "user", content: `Service category: ${(it.category as unknown as { name: string } | null)?.name ?? "General"}\nTitle: ${it.title}\nExcerpt: ${it.excerpt}` }],
+        maxTokens: 400, effort: "low",
+      });
+      const summary = out.match(/SUMMARY:\s*(.+)/)?.[1]?.trim() ?? null;
+      const act = out.match(/ACTION:\s*(.+)/)?.[1]?.trim();
+      await db.from("service_updates").update({
+        ai_summary: summary, recommended_action: act && act.toLowerCase() !== "none" ? act : null,
+        // Mark as processed even if the reply had no SUMMARY line, so it is not retried forever.
+        summary_model: summary ? ai.model : "unparsed",
+      }).eq("id", it.id);
+      if (summary) summarised++;
+    } catch {
+      break; // AI busy or unavailable: stop now, the next run continues.
+    }
+  }
+  return { summarised, ai: true };
 }

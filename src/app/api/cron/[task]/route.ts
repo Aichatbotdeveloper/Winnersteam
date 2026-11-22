@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { serverEnv } from "@/lib/env";
 import { dispatchNotifications } from "@/server/delivery";
-import { ingestServiceUpdates } from "@/server/serviceUpdates";
+import { ingestServiceUpdates, summariseBacklog } from "@/server/serviceUpdates";
 
 export const maxDuration = 300;
 
@@ -54,7 +54,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ task
       if (error) throw error;
       result.reminders = data;
     }
-    if (task === "service-updates" || task === "daily") result.serviceUpdates = await ingestServiceUpdates();
+    if (task === "service-updates" || task === "daily") {
+      result.serviceUpdates = await ingestServiceUpdates();
+      result.summaries = await summariseBacklog(task === "daily" ? 60_000 : 200_000, task === "daily" ? 6 : 25);
+    }
+    if (task === "summaries") result.summaries = await summariseBacklog(200_000, 25);
     if (task === "dispatch" || task === "reminders" || task === "evaluations" || task === "daily") result.dispatch = await dispatchNotifications();
     if (Object.keys(result).length === 0) return NextResponse.json({ error: "Unknown task" }, { status: 404 });
     return NextResponse.json({ ok: true, task, ...result });

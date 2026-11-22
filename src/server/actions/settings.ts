@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { assertUser } from "@/lib/auth";
 import { CONSEQUENCE_LIMITS } from "@/lib/labels";
 import { parseCsv } from "@/lib/csv";
-import { ingestServiceUpdates } from "@/server/serviceUpdates";
+import { ingestServiceUpdates, summariseBacklog } from "@/server/serviceUpdates";
+import { after } from "next/server";
 import { dispatchNotifications, emailHtml, sendEmail } from "@/server/delivery";
 import { serverEnv } from "@/lib/env";
 import { testAIProvider } from "@/server/ai/provider";
@@ -173,10 +174,12 @@ export async function fetchSourcesNow(_: ActionResult, fd: FormData): Promise<Ac
     await assertUser(["super_admin"]);
     const id = fd.get("id") ? z.string().uuid().parse(fd.get("id")) : undefined;
     const r = await ingestServiceUpdates(id);
+    // AI summaries are added after the response (and by the scheduler), never blocking this click.
+    after(async () => { try { await summariseBacklog(40_000, 8); } catch (e) { console.error("summaries failed", e); } });
     revalidatePath("/settings/sources");
     const added = r.sources.reduce((a, s) => a + s.added, 0);
     const failed = r.sources.filter((s) => s.status !== "ok");
-    return { ok: failed.length === 0, message: `${added} new item(s) from ${r.sources.length} source(s); ${r.matched} delivered to users.${failed.length ? ` Failed: ${failed.map((f) => `${f.source} (${f.status})`).join("; ")}` : ""}${r.ai ? "" : " AI summaries are off (no AI provider configured)."}` };
+    return { ok: failed.length === 0, message: `${added} new item(s) from ${r.sources.length} source(s); ${r.matched} delivered to users.${failed.length ? ` Failed: ${failed.map((f) => `${f.source} (${f.status})`).join("; ")}` : ""}${r.ai ? " AI summaries are being added gradually in the background." : " AI summaries are off (no AI provider configured)."}` };
   } catch (e) { return fail(e); }
 }
 
