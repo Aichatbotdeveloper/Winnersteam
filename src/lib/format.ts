@@ -78,3 +78,7 @@ export function greeting(now = new Date()) {
 export function nowTimeInOrg(now = new Date()) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: ORG_TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(now);
 }
+
+export function daysAgoIso(days: number) {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}

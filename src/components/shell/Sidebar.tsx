@@ -9,10 +9,12 @@ import type { NavSection } from "./nav";
 
 export function Sidebar({ sections, roleLabel, userName, pendingCount }: { sections: NavSection[]; roleLabel: string; userName: string; pendingCount: number }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [pathname]);
+  // The drawer is "open" only for the path it was opened on, so navigating closes it.
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt === pathname;
+  const setOpen = (v: boolean) => setOpenAt(v ? pathname : null);
   useEffect(() => {
-    const h = () => setOpen((o) => !o);
+    const h = () => setOpenAt((o) => (o === window.location.pathname ? null : window.location.pathname));
     window.addEventListener("wt:toggle-sidebar", h);
     return () => window.removeEventListener("wt:toggle-sidebar", h);
   }, []);

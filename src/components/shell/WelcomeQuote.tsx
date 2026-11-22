@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@/components/ui";
 
@@ -11,11 +11,11 @@ export function WelcomeQuote({ quote, firstName }: { quote: Quote; firstName: st
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  useEffect(() => { if (params.get("welcome") === "1" && quote) setOpen(true); }, [params, quote]);
+  const [dismissed, setDismissed] = useState(false);
+  const open = !dismissed && params.get("welcome") === "1" && Boolean(quote);
 
   function close() {
-    setOpen(false);
+    setDismissed(true);
     const sp = new URLSearchParams(params.toString());
     sp.delete("welcome");
     router.replace(sp.size ? `${pathname}?${sp}` : pathname, { scroll: false });

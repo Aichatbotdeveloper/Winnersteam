@@ -26,10 +26,20 @@ export function SubmitButton({ children, variant = "primary", size = "md", icon,
  * Form bound to a server action returning {ok, message}. Shows the result,
  * optionally resets, and refreshes server data on success.
  */
+/** Wrap a server action so success toasts fire even if the form unmounts on refresh. */
+function withToast(action: FormAction): FormAction {
+  return async (prev, fd) => {
+    const r = await action(prev, fd);
+    if (r?.ok && r.message) toast(r.message);
+    return r;
+  };
+}
+
 export function ActionForm({ action, children, className, resetOnSuccess = false, onSuccess, showMessage = true }: {
   action: FormAction; children: ReactNode; className?: string; resetOnSuccess?: boolean; onSuccess?: (r: ActionResult) => void; showMessage?: boolean;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [wrapped] = useState(() => withToast(action));
+  const [state, formAction] = useActionState(wrapped, null);
   const ref = useRef<HTMLFormElement>(null);
   const router = useRouter();
   const closeModal = useModalClose();
@@ -107,7 +117,8 @@ export function ConfirmAction({ action, label, confirm, icon, variant = "outline
   action: FormAction; label: ReactNode; confirm?: string; icon?: string; variant?: ButtonVariant; size?: "sm" | "md";
   fields: Record<string, string>; className?: string;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [wrapped] = useState(() => withToast(action));
+  const [state, formAction] = useActionState(wrapped, null);
   const router = useRouter();
   useEffect(() => { if (state?.ok) router.refresh(); }, [state, router]);
   return (
@@ -116,5 +127,32 @@ export function ConfirmAction({ action, label, confirm, icon, variant = "outline
       <SubmitButton variant={variant} size={size} icon={icon}>{label}</SubmitButton>
       {state && !state.ok && <span role="alert" className="ml-2 text-body-sm text-accent-red">{state.message}</span>}
     </form>
+  );
+}
+
+/** Global success toasts survive the row/modal that triggered them being re-rendered away. */
+export function toast(message: string) {
+  window.dispatchEvent(new CustomEvent("wt:toast", { detail: message }));
+}
+
+export function Toaster() {
+  const [items, setItems] = useState<{ id: number; message: string }[]>([]);
+  useEffect(() => {
+    const h = (e: Event) => {
+      const id = Date.now() + Math.random();
+      setItems((l) => [...l.slice(-2), { id, message: (e as CustomEvent<string>).detail }]);
+      setTimeout(() => setItems((l) => l.filter((x) => x.id !== id)), 4500);
+    };
+    window.addEventListener("wt:toast", h);
+    return () => window.removeEventListener("wt:toast", h);
+  }, []);
+  return (
+    <div className="pointer-events-none fixed bottom-20 left-1/2 z-[70] flex w-[min(92vw,460px)] -translate-x-1/2 flex-col gap-2" aria-live="polite">
+      {items.map((t) => (
+        <div key={t.id} role="status" className="flex animate-fade-in items-start gap-2 rounded-xl bg-primary px-4 py-3 text-body-md text-on-primary shadow-float">
+          <Icon name="check_circle" className="text-accent" />{t.message}
+        </div>
+      ))}
+    </div>
   );
 }

@@ -12,6 +12,8 @@ export default function FinishAuth() {
     const type = hash.get("type");
     const next = new URLSearchParams(window.location.search).get("next") ?? "/";
     if (!access_token || !refresh_token) {
+      // Browser-only state (URL fragment / Push API) is only readable after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMsg(hash.get("error_description") ?? "This link is invalid or has expired.");
       return;
     }
