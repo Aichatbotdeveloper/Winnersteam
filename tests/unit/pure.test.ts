@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import { parseFeed } from "@/lib/feed";
 import { csvCell } from "@/lib/csv";
 import { addDays, monthEnd, monthStart, pct, weekStart, naira } from "@/lib/format";
@@ -64,5 +65,15 @@ describe("csv parser", () => {
   it("handles quotes, commas, escaped quotes and CRLF", async () => {
     const { parseCsv } = await import("@/lib/csv");
     expect(parseCsv('﻿text,author\r\n"Hello, ""world""",Ann\r\n\r\nPlain,Bob')).toEqual([["text", "author"], ['Hello, "world"', "Ann"], ["Plain", "Bob"]]);
+  });
+});
+
+describe("feed fetch error messages", () => {
+  it("explains low-level network failures", async () => {
+    const { describeFetchError } = await import("@/server/serviceUpdates");
+    const err = Object.assign(new TypeError("fetch failed"), { cause: { code: "ENOTFOUND", message: "getaddrinfo ENOTFOUND x" } });
+    expect(describeFetchError(err)).toBe("fetch failed — address not found (DNS)");
+    expect(describeFetchError(Object.assign(new Error("x"), { name: "TimeoutError" }))).toBe("timed out after 15 s");
+    expect(describeFetchError(new Error("HTTP 403"))).toBe("HTTP 403");
   });
 });

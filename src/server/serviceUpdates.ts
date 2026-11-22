@@ -20,6 +20,25 @@ async function assertPublicUrl(raw: string) {
 }
 
 /** Fetch every active source, store new items, summarise (if AI configured) and match to users. */
+// Identify like a standard feed reader (some publishers block unknown agents).
+const FEED_USER_AGENT = "Mozilla/5.0 (compatible; WinnersTeamFeedReader/1.0; +https://winnersteam.automifyco.com)";
+
+/** Turn low-level fetch errors ("fetch failed") into a readable reason (exported for tests). */
+export function describeFetchError(e: unknown): string {
+  if (!(e instanceof Error)) return "failed";
+  const cause = (e as Error & { cause?: { code?: string; message?: string } }).cause;
+  const code = cause?.code ?? "";
+  const reasons: Record<string, string> = {
+    ENOTFOUND: "address not found (DNS)", EAI_AGAIN: "address lookup timed out (DNS)", ECONNREFUSED: "connection refused",
+    ECONNRESET: "connection reset by the site", ETIMEDOUT: "connection timed out", UND_ERR_CONNECT_TIMEOUT: "connection timed out",
+    CERT_HAS_EXPIRED: "the site's security certificate has expired", UNABLE_TO_VERIFY_LEAF_SIGNATURE: "security certificate could not be verified",
+    ERR_TLS_CERT_ALTNAME_INVALID: "security certificate does not match the address",
+  };
+  if (e.name === "TimeoutError") return "timed out after 15 s";
+  const detail = reasons[code] ?? cause?.message ?? "";
+  return `${e.message}${detail ? ` — ${detail}` : code ? ` (${code})` : ""}`.slice(0, 200);
+}
+
 /** Run async work over items with a fixed concurrency (exported for tests). */
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
@@ -45,7 +64,7 @@ export async function ingestServiceUpdates(onlySourceId?: string) {
     let added = 0; let status = "ok";
     try {
       await assertPublicUrl(s.feed_url);
-      const res = await fetch(s.feed_url, { headers: { "User-Agent": "WinnersTeam-ServiceUpdates/1.0", Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" }, signal: AbortSignal.timeout(15000), redirect: "follow" });
+      const res = await fetch(s.feed_url, { headers: { "User-Agent": FEED_USER_AGENT, Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5", "Accept-Language": "en" }, signal: AbortSignal.timeout(15000), redirect: "follow" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.text()).slice(0, 3_000_000);
       const items = parseFeed(body).filter((i) => i.title && /^https?:\/\//.test(i.url)).slice(0, max);
@@ -59,7 +78,7 @@ export async function ingestServiceUpdates(onlySourceId?: string) {
         added = data?.length ?? 0;
       }
     } catch (e) {
-      status = e instanceof Error ? e.message.slice(0, 200) : "failed";
+      status = describeFetchError(e);
     }
     await db.from("service_update_sources").update({ last_fetched_at: new Date().toISOString(), last_status: status }).eq("id", s.id);
     return { source: s.name as string, status, added };
