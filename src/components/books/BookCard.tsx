@@ -1,32 +1,18 @@
 import { Badge, Icon, Progress, cn } from "@/components/ui";
 import { ActionForm, ConfirmAction, ModalButton, SubmitButton } from "@/components/ui/client";
 import { addReadingNote, dismissRecommendation, removeFromList, setReading } from "@/server/actions/books";
+import { BookCover } from "./BookCover";
 
 export type Book = { id: string; title: string; author: string; category: string; improvement_area: string; description: string | null;
   cover_url: string | null; reading_url: string | null; free_download_url: string | null; license: "public_domain" | "open_access" | "commercial" };
 export type Progress = { status: "want_to_read" | "reading" | "completed"; progress_pct: number } | undefined;
 
 const LICENSE = { public_domain: ["Public domain", "green"], open_access: ["Open access", "blue"], commercial: ["Commercial — borrow or buy", "neutral"] } as const;
-const COVER = ["#5a45cb", "#0091FF", "#10B981", "#F59E0B", "#8B5CF6", "#202020"];
-
-/** Generated cover (no copyrighted cover art is fetched). */
-function Cover({ book }: { book: Book }) {
-  const color = COVER[[...book.title].reduce((s, c) => s + c.charCodeAt(0), 0) % COVER.length];
-  // eslint-disable-next-line @next/next/no-img-element
-  if (book.cover_url) return <img src={book.cover_url} alt="" className="h-28 w-20 shrink-0 rounded-md object-cover shadow-card" />;
-  return (
-    <div className="flex h-28 w-20 shrink-0 flex-col justify-between rounded-md p-2 text-white shadow-card" style={{ background: color }} aria-hidden>
-      <span className="line-clamp-4 font-heading text-[11px] font-bold leading-tight">{book.title}</span>
-      <span className="truncate text-[9px] opacity-80">{book.author}</span>
-    </div>
-  );
-}
-
 export function BookCard({ book, progress, reason, recId, notes }: { book: Book; progress: Progress; reason?: string; recId?: string; notes?: { id: string; note: string; created_at: string }[] }) {
   const [lic, tone] = LICENSE[book.license];
   return (
     <div className={cn("flex gap-4 rounded-xl border border-border-subtle bg-surface p-4", reason && "border-secondary/40 bg-surface-container-low/40")}>
-      <Cover book={book} />
+      <BookCover title={book.title} author={book.author} src={book.cover_url} />
       <div className="min-w-0 flex-1">
         <div className="font-heading text-body-lg text-ink">{book.title}</div>
         <div className="text-body-sm text-muted-text">{book.author}</div>

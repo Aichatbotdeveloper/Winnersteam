@@ -77,6 +77,14 @@ test("reports export as CSV, Excel and PDF", async ({ page }) => {
     expect(res.headers()["content-disposition"]).toContain(`.${f}`);
     expect((await res.body()).length).toBeGreaterThan(100);
   }
+  for (const t of ["prospecting", "goals", "development", "tasks", "accountability"]) {
+    for (const period of ["daily", "weekly", "monthly"]) {
+      const res = await page.request.get(`/api/reports/export?type=${t}&period=${period}&format=csv`);
+      expect(res.status(), `${t}/${period}`).toBe(200);
+    }
+  }
+  const csv = await (await page.request.get("/api/reports/export?type=prospecting&period=weekly&format=csv")).text();
+  expect(csv).toContain("Achievement %");
 });
 
 test("staff pages render without errors", async ({ page }) => {

@@ -10,8 +10,9 @@ export const metadata: Metadata = { title: "Reports" };
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ type?: string; period?: string; date?: string; admin?: string }> }) {
   const me = await requireUser();
   const sp = await searchParams;
-  const types = me.role === "team_member" ? [["performance", "Performance history"], ["tasks", "Tasks"], ["accountability", "Accountability"]]
-    : [["performance", "Team performance"], ["tasks", "Tasks"], ["accountability", "Accountability"], ["users", "User directory"]];
+  const common = [["tasks", "Tasks"], ["prospecting", "Prospecting achievement"], ["goals", "Goal history"], ["development", "Personal development"], ["accountability", "Accountability"]];
+  const types = me.role === "team_member" ? [["performance", "Performance history"], ...common]
+    : [["performance", "Team performance"], ...common, ["users", "User directory"]];
   const type = types.some(([k]) => k === sp.type) ? sp.type! : "performance";
   const period = (["daily", "weekly", "monthly"].includes(sp.period ?? "") ? sp.period : "weekly") as "daily" | "weekly" | "monthly";
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? "") ? sp.date! : todayInOrg();
