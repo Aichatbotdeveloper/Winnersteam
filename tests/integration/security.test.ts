@@ -149,3 +149,39 @@ describe("productivity integrity", () => {
     expect(good.error).toBeNull();
   });
 });
+
+describe("additional isolation checks", () => {
+  it("avatars: members can only write to their own folder; other teams cannot read", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const own = await memberA.client.storage.from("avatars").upload(`${memberA.id}/t.png`, png, { contentType: "image/png", upsert: true });
+    expect(own.error).toBeNull();
+    const other = await memberA.client.storage.from("avatars").upload(`${memberB.id}/evil.png`, png, { contentType: "image/png" });
+    expect(other.error).not.toBeNull();
+    const assigned = await adminA.client.storage.from("avatars").createSignedUrl(`${memberA.id}/t.png`, 60);
+    expect(assigned.error).toBeNull();
+    const crossTeam = await adminB.client.storage.from("avatars").createSignedUrl(`${memberA.id}/t.png`, 60);
+    expect(crossTeam.error).not.toBeNull();
+  });
+
+  it("other teams' change logs, ledgers and notifications stay private", async () => {
+    await memberA.client.from("profiles").update({ team_name: "Alpha" }).eq("id", memberA.id);
+    expect((await adminB.client.from("profile_change_log").select("id").eq("profile_id", memberA.id)).data).toEqual([]);
+    expect((await adminB.client.from("notifications").select("id").eq("user_id", adminA.id)).data).toEqual([]);
+    const { data: rows } = await adminB.client.from("accountability_ledger").select("user_id");
+    expect(rows?.every((r) => r.user_id !== memberA.id)).toBe(true);
+  });
+
+  it("cannot forge notifications or audit entries", async () => {
+    const n = await memberA.client.from("notifications").insert({ user_id: memberB.id, category: "system", type: "x", title: "fake" });
+    expect(n.error).not.toBeNull();
+    const a = await superA.client.from("audit_logs").insert({ action: "fake.entry", entity_type: "x" });
+    expect(a.error).not.toBeNull();
+  });
+
+  it("administrators cannot modify member profiles or settings", async () => {
+    const r = await adminA.client.from("profiles").update({ full_name: "Hacked" }).eq("id", memberA.id).select();
+    expect(r.data ?? []).toEqual([]);
+    const s = await adminA.client.from("system_settings").update({ value: false }).eq("key", "registration.open").select();
+    expect(s.data ?? []).toEqual([]);
+  });
+});

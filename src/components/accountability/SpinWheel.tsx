@@ -16,7 +16,8 @@ function shade(hex: string, amt: number) {
 }
 
 function arcPath(cx: number, cy: number, r: number, a0: number, a1: number) {
-  const p = (a: number) => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  // Rounded so server- and browser-computed SVG paths are identical (hydration).
+  const p = (a: number) => [Math.round((cx + r * Math.sin(a)) * 100) / 100, Math.round((cy - r * Math.cos(a)) * 100) / 100];
   const [x0, y0] = p(a0); const [x1, y1] = p(a1);
   return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1} ${y1} Z`;
 }
@@ -192,14 +193,14 @@ export function SpinWheel({ eventId, sectors: initialSectors, drawn, canSpin, ac
                   const sameCat = sectors.slice(0, i).filter((x) => x.category === s.category).length;
                   const fill = shade(CONSEQUENCE_COLOR[s.category], sameCat % 2 ? -0.18 : sameCat % 3 ? 0.15 : 0);
                   const mid = (a0 + a1) / 2;
-                  const deg = (mid * 180) / Math.PI;
+                  const deg = Math.round(((mid * 180) / Math.PI) * 100) / 100;
                   const span = ((a1 - a0) * 180) / Math.PI;
                   return (
                     <g key={s.option_id + i}>
                       <path d={arcPath(c, c, r, a0, a1)} fill={fill} stroke="#fff" strokeWidth="2" />
                       {span > 9 && (
-                        <text x={c} y={c - r * 0.58} fill="#fff" fontSize={span > 24 ? 13 : 10} fontWeight={700} textAnchor="middle"
-                          transform={`rotate(${deg} ${c} ${c}) rotate(${deg > 180 ? 90 : -90} ${c} ${c - r * 0.58})`} style={{ fontFamily: "Inter, sans-serif" }}>
+                        <text x={c} y={Math.round(c - r * 0.58)} fill="#fff" fontSize={span > 24 ? 13 : 10} fontWeight={700} textAnchor="middle"
+                          transform={`rotate(${deg} ${c} ${c}) rotate(${deg > 180 ? 90 : -90} ${c} ${Math.round(c - r * 0.58)})`} style={{ fontFamily: "Inter, sans-serif" }}>
                           {sectorLabel(s.category, s.quantity)}
                         </text>
                       )}

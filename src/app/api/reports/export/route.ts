@@ -4,15 +4,10 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { getCurrentProfile } from "@/lib/auth";
 import { buildReport, type Report } from "@/server/reports";
 import { todayInOrg } from "@/lib/format";
+import { csvCell } from "@/lib/csv";
 
 export const maxDuration = 60;
 
-function csvCell(v: unknown) {
-  if (v === null || v === undefined) return "";
-  let s = String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // spreadsheet formula-injection guard
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 async function toXlsx(r: Report) {
   const wb = new ExcelJS.Workbook();
