@@ -51,7 +51,8 @@ Last updated: 22 Nov 2026
 - AI: Google Gemini API (`AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash`), confirmed working live. If a model is busy or retired the app retries, then falls back to other available Flash/Flash-Lite models; LEX receives the full role-filtered help centre and cites its sources. Only the user's role is sent to the AI — no names or personal records.
 - Browser push: VAPID keys in Vercel (private key sensitive), confirmed working live (test notification received). Users enable it per device under Notifications → Preferences.
 - Scheduling: Supabase pg_cron runs reminders hourly and delivery every 10 minutes (single-use database tokens authorise calls to the app; verified locally end-to-end).
-- Remaining optional item: approved RSS sources for service updates.
+- Service updates: 18 approved sources active across 9 categories (confirmed fetching in production); articles delivered by each member's service categories, with an instant 30-day catch-up when a member adds a service and AI summaries added gradually in the background.
+- All planned integrations are live.
 
 ## Needs credentials or authorisation (implemented, not live-tested)
 

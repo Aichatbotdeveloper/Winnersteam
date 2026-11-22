@@ -4,6 +4,8 @@
 -- Each source is linked to a service category; members receive items for the
 -- categories of the services in their profile.
 -- After running: Settings → Service update sources → "Fetch all now".
+-- (Search Engine Land blocks automated readers and the old HBR feed is retired,
+--  so they were replaced; all sources below were confirmed working in production.)
 -- Any feed that fails shows its error there and can be edited or deactivated.
 -- =============================================================================
 insert into public.service_update_sources (name, feed_url, homepage_url, category_id)
@@ -14,7 +16,6 @@ from (values
   ('CSS-Tricks',                 'https://css-tricks.com/feed/',                  'https://css-tricks.com',           'web-development'),
   ('WordPress News',             'https://wordpress.org/news/feed/',              'https://wordpress.org/news/',      'web-development'),
   -- Digital Marketing
-  ('Search Engine Land',         'https://searchengineland.com/feed',             'https://searchengineland.com',     'digital-marketing'),
   ('Search Engine Journal',      'https://www.searchenginejournal.com/feed/',     'https://www.searchenginejournal.com', 'digital-marketing'),
   ('HubSpot Marketing Blog',     'https://blog.hubspot.com/marketing/rss.xml',    'https://blog.hubspot.com/marketing', 'digital-marketing'),
   ('Social Media Examiner',      'https://www.socialmediaexaminer.com/feed/',     'https://www.socialmediaexaminer.com', 'digital-marketing'),
@@ -27,7 +28,8 @@ from (values
   ('Nairametrics',               'https://nairametrics.com/feed/',                'https://nairametrics.com',         'financial-consulting'),
   ('CNBC Finance',               'https://www.cnbc.com/id/10000664/device/rss/rss.html', 'https://www.cnbc.com/finance/', 'financial-consulting'),
   -- Business Consulting
-  ('Harvard Business Review',    'https://feeds.hbr.org/harvardbusiness',         'https://hbr.org',                  'business-consulting'),
+  ('MIT Sloan Management Review','https://sloanreview.mit.edu/feed/',             'https://sloanreview.mit.edu',      'business-consulting'),
+  ('Entrepreneur',               'https://www.entrepreneur.com/latest.rss',       'https://www.entrepreneur.com',     'business-consulting'),
   ('TechCabal',                  'https://techcabal.com/feed/',                   'https://techcabal.com',            'business-consulting'),
   -- Software Development
   ('The GitHub Blog',            'https://github.blog/feed/',                     'https://github.blog',              'software-development'),
