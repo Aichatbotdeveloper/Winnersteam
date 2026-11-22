@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LEX assistant">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD36B"/>
+      <stop offset="0.55" stop-color="#F5A623"/>
+      <stop offset="1" stop-color="#D9821A"/>
+    </linearGradient>
+  </defs>
+  <!-- speech bubble -->
+  <path d="M12 6h40a8 8 0 0 1 8 8v26a8 8 0 0 1-8 8H30l-11 10v-10h-7a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8z" fill="#1b1b1b"/>
+  <!-- trophy cup with angular handles (echoing the Winners Team trophy) -->
+  <path d="M22 14h20v9a10 10 0 0 1-20 0z" fill="url(#g)"/>
+  <path d="M22 16h-6v5l6 6M42 16h6v5l-6 6" fill="none" stroke="url(#g)" stroke-width="2.6" stroke-linejoin="round"/>
+  <rect x="30" y="32" width="4" height="4" fill="url(#g)"/>
+  <rect x="25" y="36" width="14" height="3.5" rx="1.2" fill="url(#g)"/>
+  <rect x="23" y="40" width="18" height="4.5" rx="1" fill="#A33A2A"/>
+  <!-- sparkle -->
+  <path d="M50 11l1.2 2.8L54 15l-2.8 1.2L50 19l-1.2-2.8L46 15l2.8-1.2z" fill="#FFD36B"/>
+</svg>

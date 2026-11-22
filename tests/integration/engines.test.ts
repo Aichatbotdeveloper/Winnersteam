@@ -28,7 +28,7 @@ describe("performance engine", () => {
     const { data, error } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "daily", p_date: yesterday });
     expect(error).toBeNull();
     expect(Number(data.overall)).toBe(80);
-    const cats = Object.fromEntries((data.categories as { category: string }[]).map((c) => [c.category, c]));
+    const cats = Object.fromEntries((data.categories as { category: string; [k: string]: unknown }[]).map((c) => [c.category, c]));
     expect(cats.weekly_goals.applicable).toBe(false);
     expect(Number(cats.daily_todo.effective_weight)).toBe(100);
   });
