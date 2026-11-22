@@ -91,7 +91,7 @@ export function LexChat({ role, welcome, initialConversationId = null, initialMe
                     : <span key={s.title} className="rounded bg-surface px-1.5 py-0.5 text-[11px] text-muted-text">{s.title}</span>)}
                 </div>
               )}
-              {m.mode === "knowledge_base" && <div className="text-[11px] text-faint-text">Answered from the Winners Team help centre (AI provider not configured).</div>}
+              {m.mode === "knowledge_base" && m.sources && m.sources.length > 0 && <div className="text-[11px] text-faint-text">Answered from the Winners Team help centre.</div>}
             </div>
           </div>
         ))}

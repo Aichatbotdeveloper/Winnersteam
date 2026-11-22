@@ -277,7 +277,17 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
     );
     body = (
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between p-5 pb-3"><CardHeader icon="format_quote" title="Motivational quotes" eyebrow={`${(data ?? []).filter((q) => q.active).length} active · rotated at every sign-in`} /><ModalButton label="Add quote" title="Add quote" icon="add">{quoteForm()}</ModalButton></div>
+        <div className="flex items-center justify-between p-5 pb-3"><CardHeader icon="format_quote" title="Motivational quotes" eyebrow={`${(data ?? []).filter((q) => q.active).length} active · rotated at every sign-in`} /><div className="flex flex-wrap gap-2">
+          <ModalButton label="Import CSV" title="Import quotes from CSV" icon="upload_file" variant="outline">
+            <ActionForm action={A.importQuotes} className="space-y-3">
+              <p className="text-body-md text-muted-text">Upload a <strong>.csv</strong> file with the columns <code>text, author, source, category</code> (a header row is optional). Every quote needs an accurate author; duplicates are skipped automatically.</p>
+              <p className="text-body-sm text-muted-text">Categories: {QUOTE_CATS.map((c) => c).join(", ")}. Leave it blank for “success”.</p>
+              <input type="file" name="file" accept=".csv,text/csv" required className="block w-full text-body-sm file:mr-2 file:rounded-lg file:border-0 file:bg-surface-container-low file:px-3 file:py-1.5 file:font-semibold file:text-secondary" />
+              <a href="/brand/quotes-template.csv" download className="inline-block text-body-sm font-semibold text-link hover:underline">Download a template CSV</a>
+              <div className="flex justify-end"><SubmitButton icon="upload">Import quotes</SubmitButton></div>
+            </ActionForm>
+          </ModalButton>
+          <ModalButton label="Add quote" title="Add quote" icon="add">{quoteForm()}</ModalButton></div></div>
         <Table>
           <thead><tr><Th>Quote</Th><Th>Author</Th><Th>Category</Th><Th>Shown</Th><Th>Status</Th><Th /></tr></thead>
           <tbody>{(data ?? []).map((q) => (

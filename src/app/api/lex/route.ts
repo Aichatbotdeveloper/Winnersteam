@@ -7,6 +7,24 @@ import { ROLE_LABEL } from "@/lib/labels";
 
 const body = z.object({ conversationId: z.string().uuid().nullable().optional(), message: z.string().trim().min(1).max(1000) });
 
+const MIN_RANK = 0.05;
+
+const SMALL_TALK_REPLY = {
+  greeting: "Hello! 👋 I'm LEX. Ask me how anything in Winners Team works — for example \"How do I set my weekly goals?\" or \"How is my score calculated?\"",
+  thanks: "You're welcome! Is there anything else you'd like to know about Winners Team?",
+  bye: "Goodbye — have a productive day! I'm here whenever you need help.",
+} as const;
+
+/** Recognise greetings / thanks / farewells so they aren't treated as help-centre searches. */
+function classifySmallTalk(text: string): keyof typeof SMALL_TALK_REPLY | null {
+  const t = text.toLowerCase().replace(/[^a-z\s']/g, " ").replace(/\s+/g, " ").trim();
+  if (!t || t.split(" ").length > 6) return null;
+  if (/^(ok(ay)?|alright|great|cool|nice|perfect|got it)?\s*(thanks?|thank you|thank u|thx|cheers)( (so|very) much| a lot)?( lex)?$|^(ok(ay)?|alright|got it|great|perfect|cool|nice)$/.test(t)) return "thanks";
+  if (/^(hi|hello|hey|good (morning|afternoon|evening)|howdy)( there)?( lex)?$/.test(t)) return "greeting";
+  if (/^(bye|goodbye|see you|later|good night)( lex)?$/.test(t)) return "bye";
+  return null;
+}
+
 const ROLE_SCOPE: Record<string, string> = {
   team_member: "The user is a Team Member. Explain their personal workspace: tasks, goals, prospecting, performance, accountability, profile, books, service updates, notifications.",
   administrator: "The user is an Administrator. Explain how to manage their assigned team (monitoring, reports, announcements, removing team members). Administrators cannot transfer members, create administrators or see other teams.",
@@ -49,10 +67,22 @@ export async function POST(req: NextRequest) {
   ]);
   await supabase.from("lex_messages").insert({ conversation_id: conversationId, role: "user", content: parsed.data.message });
 
-  const docs = (kb.data ?? []).filter((d) => d.rank > 0);
-  const sources = docs.map((d) => ({ title: d.title, link: d.link }));
+  // Keep only genuinely relevant articles: unrelated text scores ~0, real matches
+  // score well above 0.05. Secondary articles must be close to the best match.
+  const all = (kb.data ?? []).filter((d) => d.rank >= MIN_RANK);
+  const docs = all.filter((d, i) => i === 0 || d.rank >= all[0]!.rank * 0.5).slice(0, 3);
+  const sources = docs.slice(0, 2).map((d) => ({ title: d.title, link: d.link }));
+  const smallTalk = classifySmallTalk(parsed.data.message);
   const provider = getAIProvider();
   let reply: string; let mode: "ai" | "knowledge_base";
+
+  if (smallTalk && !provider) {
+    mode = "knowledge_base";
+    reply = SMALL_TALK_REPLY[smallTalk];
+    await supabase.from("lex_messages").insert({ conversation_id: conversationId, role: "assistant", content: reply, sources: [], mode });
+    await supabase.from("lex_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    return NextResponse.json({ conversationId, reply, sources: [], mode });
+  }
 
   if (provider) {
     const system = [
@@ -80,7 +110,7 @@ export async function POST(req: NextRequest) {
     mode = "knowledge_base";
     reply = docs.length
       ? `Here's what the Winners Team help centre says:\n\n**${docs[0]!.title}**\n${docs[0]!.content}${docs[1] ? `\n\nRelated: **${docs[1].title}**` : ""}`
-      : "I couldn't find a help article for that. Try rephrasing, or ask your administrator. (The AI provider is not configured, so I can only answer from the help centre.)";
+      : `I couldn't find a help article about that. I can help with things like:\n- How to create your daily to-do list\n- How your performance score is calculated\n- How the accountability wheel works\n- Updating your profile and services\n- Notifications and reminders\n\nTry asking about one of these, or contact your administrator.`;
   }
 
   await supabase.from("lex_messages").insert({ conversation_id: conversationId, role: "assistant", content: reply.slice(0, 12000), sources, mode });

@@ -60,7 +60,6 @@ export function Sidebar({ sections, roleLabel, userName, pendingCount }: { secti
           ))}
         </nav>
         <div className="border-t border-primary-container px-3 py-3 text-[11px]">
-          <div className="flex items-center gap-1.5 text-faint-text"><span className="h-1.5 w-1.5 rounded-full bg-accent" />Connected to Supabase</div>
           <div className="mt-1 flex items-center justify-between font-mono text-on-primary-container"><span className="truncate">{userName}</span><span className="text-accent">{roleLabel.toUpperCase()}</span></div>
         </div>
       </aside>

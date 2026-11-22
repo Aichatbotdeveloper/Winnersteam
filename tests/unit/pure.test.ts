@@ -59,3 +59,10 @@ describe("accountability business rules (UI mirror of DB constraints)", () => {
     expect(consequenceText("financial_fine", 2500)).toBe("₦2,500 financial fine");
   });
 });
+
+describe("csv parser", () => {
+  it("handles quotes, commas, escaped quotes and CRLF", async () => {
+    const { parseCsv } = await import("@/lib/csv");
+    expect(parseCsv('﻿text,author\r\n"Hello, ""world""",Ann\r\n\r\nPlain,Bob')).toEqual([["text", "author"], ['Hello, "world"', "Ann"], ["Plain", "Bob"]]);
+  });
+});

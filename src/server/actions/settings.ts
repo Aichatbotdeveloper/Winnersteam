@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { assertUser } from "@/lib/auth";
 import { CONSEQUENCE_LIMITS } from "@/lib/labels";
+import { parseCsv } from "@/lib/csv";
 import { ingestServiceUpdates } from "@/server/serviceUpdates";
 import type { ActionResult } from "@/components/ui/client";
 
@@ -243,5 +244,47 @@ export async function saveCategory(_: ActionResult, fd: FormData): Promise<Actio
     }
     if (error) return fail(error);
     return done("/settings/categories", "Category saved.");
+  } catch (e) { return fail(e); }
+}
+
+const QUOTE_CATEGORIES = ["discipline", "consistency", "success", "business", "leadership", "excellence", "personal_growth", "productivity"] as const;
+
+/**
+ * Bulk import quotes from CSV: columns text, author, source, category (header row
+ * optional). Every row needs an author. Duplicates (same text) are skipped.
+ */
+export async function importQuotes(_prev: ActionResult, fd: FormData): Promise<ActionResult> {
+  try {
+    const supabase = await su();
+    const file = fd.get("file");
+    if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Choose a CSV file to import." };
+    if (file.size > 2 * 1024 * 1024) return { ok: false, message: "The file must be 2 MB or smaller." };
+    let rows = parseCsv(await file.text());
+    if (rows[0] && rows[0][0]?.trim().toLowerCase() === "text") rows = rows.slice(1);
+    if (rows.length === 0) return { ok: false, message: "The file has no rows." };
+    if (rows.length > 5000) return { ok: false, message: "Import at most 5,000 quotes at a time." };
+
+    const valid: { text: string; author: string; source: string | null; category: string }[] = [];
+    const problems: string[] = [];
+    rows.forEach((r, i) => {
+      const text = (r[0] ?? "").trim(), author = (r[1] ?? "").trim(), source = (r[2] ?? "").trim();
+      const category = (r[3] ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_") || "success";
+      if (text.length < 5 || text.length > 500) problems.push(`row ${i + 1}: quote must be 5–500 characters`);
+      else if (!author || author.length > 120) problems.push(`row ${i + 1}: author is required`);
+      else if (!(QUOTE_CATEGORIES as readonly string[]).includes(category)) problems.push(`row ${i + 1}: unknown category "${category}"`);
+      else valid.push({ text, author, source: source ? source.slice(0, 200) : null, category });
+    });
+    if (valid.length === 0) return { ok: false, message: `Nothing imported. ${problems.slice(0, 3).join("; ")}` };
+
+    const { data: existing } = await supabase.from("motivational_quotes").select("text").limit(100000);
+    const seen = new Set((existing ?? []).map((q) => q.text.trim().toLowerCase()));
+    const fresh = valid.filter((q) => { const k = q.text.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+    for (let i = 0; i < fresh.length; i += 200) {
+      const { error } = await supabase.from("motivational_quotes").insert(fresh.slice(i, i + 200).map((q) => ({ ...q, active: true, category: q.category as (typeof QUOTE_CATEGORIES)[number] })));
+      if (error) return fail(error);
+    }
+    revalidatePath("/settings/quotes");
+    const skipped = valid.length - fresh.length;
+    return { ok: true, message: `Imported ${fresh.length} quote(s).${skipped ? ` ${skipped} duplicate(s) skipped.` : ""}${problems.length ? ` ${problems.length} invalid row(s) skipped (e.g. ${problems[0]}).` : ""}` };
   } catch (e) { return fail(e); }
 }
