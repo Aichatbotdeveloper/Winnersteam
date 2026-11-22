@@ -11,8 +11,14 @@ export const maxDuration = 300;
 async function authorisedByToken(req: NextRequest) {
   const token = req.headers.get("x-cron-token");
   if (!token || !/^[0-9a-f]{64}$/.test(token)) return false;
-  const { data } = await createAdminClient().rpc("cron_consume_token", { p_token: token });
-  return data === true;
+  try {
+    const { data, error } = await createAdminClient().rpc("cron_consume_token", { p_token: token });
+    if (error) console.error("cron token check failed:", error.code, error.message);
+    return data === true;
+  } catch (e) {
+    console.error("cron token check crashed:", e);
+    return false;
+  }
 }
 
 function authorised(req: NextRequest) {
