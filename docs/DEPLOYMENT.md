@@ -80,4 +80,6 @@ The AI layer (`src/server/ai/provider.ts`) is a provider interface. Anthropic is
 | App notification e-mails | `RESEND_API_KEY` + `EMAIL_FROM` in Vercel; sent immediately after each action (Next.js `after()`), with the daily cron as a backstop |
 | E-mail templates | `supabase/templates/*` pasted into Supabase → Authentication → Emails |
 
-Super Admin tools: **Settings → General → Integrations** has "Send test e-mail to me" and "Deliver pending notifications now".
+| AI (LEX + summaries) | Gemini API key from Google AI Studio in `AI_API_KEY`; `AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash` (auto-fallback to other Flash/Flash-Lite models). A Google One / AI Pro subscription does not cover API usage — API billing is set per project in AI Studio. |
+
+Super Admin tools: **Settings → General → Integrations** has "Send test e-mail to me" and "Deliver pending notifications now" and "Test AI connection" (shows per-model diagnostics on failure).
