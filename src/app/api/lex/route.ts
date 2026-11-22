@@ -62,8 +62,10 @@ export async function POST(req: NextRequest) {
     conversationId = data.id;
   }
 
-  const [kb, history, maxHist] = await Promise.all([
+  const [kb, fullKb, history, maxHist] = await Promise.all([
     supabase.rpc("search_knowledge_base", { p_query: parsed.data.message, p_limit: 4 }),
+    // RLS returns only active articles whose audience includes the caller's role.
+    supabase.from("knowledge_base_documents").select("slug,title,content,link").eq("active", true).order("title"),
     supabase.from("lex_messages").select("role,content").eq("conversation_id", conversationId).order("created_at", { ascending: false }).limit(24),
     supabase.from("system_settings").select("value").eq("key", "lex.max_history").maybeSingle(),
   ]);
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
   // score well above 0.05. Secondary articles must be close to the best match.
   const all = (kb.data ?? []).filter((d) => d.rank >= MIN_RANK);
   const docs = all.filter((d, i) => i === 0 || d.rank >= all[0]!.rank * 0.5).slice(0, 3);
-  const sources = docs.slice(0, 2).map((d) => ({ title: d.title, link: d.link }));
+  let sources: { title: string; link: string | null }[] = docs.slice(0, 2).map((d) => ({ title: d.title, link: d.link }));
   const smallTalk = classifySmallTalk(parsed.data.message);
   const provider = getAIProvider();
   let reply: string; let mode: "ai" | "knowledge_base";
@@ -95,14 +97,22 @@ export async function POST(req: NextRequest) {
       "Be concise and practical: short paragraphs or numbered steps. You may link to pages with markdown links like [Tasks](/tasks).",
       // Only the role is shared with the AI provider — no names or personal records.
       `The user's role is ${ROLE_LABEL[me.role]}.`,
+      "After your answer, on a final line, write SOURCES: followed by the slug(s) of the article(s) you used, comma-separated (or SOURCES: none).",
       "<documentation>",
-      ...(docs.length ? docs : []).map((d) => `<doc title="${d.title}" link="${d.link ?? ""}">\n${d.content}\n</doc>`),
+      // The whole help centre is small, so the AI sees every article this role may read
+      // and decides relevance itself (keyword search is only a fallback).
+      ...(fullKb.data ?? []).map((d) => `<doc slug="${d.slug}" title="${d.title}" link="${d.link ?? ""}">\n${d.content}\n</doc>`),
       "</documentation>",
     ].join("\n");
     const keep = Math.min(Math.max(Number(maxHist.data?.value ?? 12), 0), 24);
     const turns = (history.data ?? []).slice(0, keep).reverse().map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
     try {
-      reply = await provider.complete({ system, messages: [...turns, { role: "user", content: parsed.data.message }], maxTokens: 2000, effort: "low" });
+      const raw = await provider.complete({ system, messages: [...turns, { role: "user", content: parsed.data.message }], maxTokens: 2000, effort: "low" });
+      const m = raw.match(/\n?[\s*_]*SOURCES[\s*_]*:[\s*_]*(.*?)[\s*_.]*$/i);
+      reply = (m ? raw.slice(0, m.index) : raw).trim();
+      const used = (m?.[1] ?? "").split(",").map((x) => x.trim().replace(/[`*]/g, "")).filter(Boolean);
+      const bySlug = new Map((fullKb.data ?? []).map((d) => [d.slug, d]));
+      sources = used.map((u) => bySlug.get(u)).filter((d): d is NonNullable<typeof d> => Boolean(d)).slice(0, 3).map((d) => ({ title: d.title, link: d.link }));
       mode = "ai";
     } catch (e) {
       if (!(e instanceof AIUnavailableError)) console.error("LEX provider error", e);
