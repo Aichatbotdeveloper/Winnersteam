@@ -64,3 +64,15 @@ export async function removePushSubscription(endpoint: string): Promise<ActionRe
   revalidatePath("/notifications");
   return { ok: true, message: "Browser notifications disabled on this device." };
 }
+
+export async function sendTestPushToMe(): Promise<ActionResult> {
+  try {
+    const me = await assertUser();
+    const { sendTestPush } = await import("@/server/delivery");
+    const r = await sendTestPush(me.id);
+    if (!r.configured) return { ok: false, message: "Browser push is not configured on the server." };
+    if (r.devices === 0) return { ok: false, message: "No device is registered yet — enable browser notifications first." };
+    return r.sent ? { ok: true, message: `Test notification sent to ${r.sent} device(s). It should pop up in a few seconds.` }
+      : { ok: false, message: "The notification could not be delivered. Turn browser notifications off and on again on this device." };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : "Test failed" }; }
+}

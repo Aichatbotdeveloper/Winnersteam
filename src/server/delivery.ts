@@ -91,3 +91,25 @@ export async function dispatchNotifications(limit = 200) {
   }
   return out;
 }
+
+/** Send a test push to every device the given user has enabled. */
+export async function sendTestPush(userId: string) {
+  const cfg = serverEnv();
+  if (!(env.vapidPublicKey && cfg.vapidPrivateKey && cfg.vapidSubject)) return { sent: 0, devices: 0, configured: false };
+  webpush.setVapidDetails(cfg.vapidSubject, env.vapidPublicKey, cfg.vapidPrivateKey);
+  const db = createAdminClient();
+  const { data: subs } = await db.from("push_subscriptions").select("*").eq("user_id", userId);
+  let sent = 0;
+  for (const s of subs ?? []) {
+    try {
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        JSON.stringify({ title: "Winners Team", body: "Browser notifications are working on this device. 🎉", link: "/notifications", tag: "test-push" }), { TTL: 600 });
+      sent++;
+    } catch (e) {
+      const code = (e as { statusCode?: number }).statusCode;
+      if (code === 404 || code === 410) await db.from("push_subscriptions").delete().eq("id", s.id);
+      console.error("test push failed", code, e instanceof Error ? e.message : e);
+    }
+  }
+  return { sent, devices: subs?.length ?? 0, configured: true };
+}

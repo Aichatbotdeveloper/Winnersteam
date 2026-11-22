@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui";
-import { removePushSubscription, savePushSubscription } from "@/server/actions/notifications";
+import { removePushSubscription, savePushSubscription, sendTestPushToMe } from "@/server/actions/notifications";
 
 function urlBase64ToUint8Array(base64: string) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -49,7 +49,12 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-alt px-4 py-3">
       <span className="text-body-md text-muted-text">{msg ?? text[state]}</span>
       {state === "off" && <Button size="sm" icon="notifications_active" onClick={enable}>Enable browser notifications</Button>}
-      {state === "on" && <Button size="sm" variant="outline" icon="notifications_off" onClick={disable}>Disable on this device</Button>}
+      {state === "on" && (
+        <span className="flex flex-wrap gap-2">
+          <Button size="sm" icon="notifications_active" onClick={async () => { setMsg("Sending…"); const r = await sendTestPushToMe(); setMsg(r?.message ?? null); }}>Send a test notification</Button>
+          <Button size="sm" variant="outline" icon="notifications_off" onClick={disable}>Disable on this device</Button>
+        </span>
+      )}
     </div>
   );
 }
