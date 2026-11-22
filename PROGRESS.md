@@ -16,7 +16,7 @@ Last updated: 22 Nov 2026
 | 8. Service updates | ✅ Approved-source RSS/Atom ingestion (SSRF guard), category matching, AI summaries, feed, save/read. |
 | 9. Personal development | ✅ Historical weakness detection, recommendations, library, reading list, progress, notes. Copyright guard. |
 | 10. LEX | ✅ Role-aware chat grounded in a role-filtered knowledge base, conversation history, rate limit, provider interface. |
-| 11. Quotes, settings, audit, reports | ✅ Login quotes with no-repeat window. All settings sections. Append-only audit viewer. CSV, Excel and PDF exports. |
+| 11. Quotes, settings, audit, reports | ✅ Login quotes with no-repeat window. All settings sections. Append-only audit viewer. Reports (performance, tasks, prospecting achievement, goal history, personal development, accountability, user directory) in CSV, Excel and PDF; large reports are read in pages so nothing is cut off. |
 | 12. QA & deployment prep | ✅ Tests below. Production build. Docs. `vercel.json` and `.env.example`. **Not deployed**: awaiting authorisation. |
 
 ## Verified test results (fresh `supabase db reset`, production build)
@@ -53,6 +53,7 @@ Last updated: 22 Nov 2026
 - Scheduling: Supabase pg_cron runs reminders hourly and delivery every 10 minutes (single-use database tokens authorise calls to the app; verified locally end-to-end).
 - Service updates: 18 approved sources active across 9 categories (confirmed fetching in production); articles delivered by each member's service categories, with an instant 30-day catch-up when a member adds a service and AI summaries added gradually in the background.
 - All planned integrations are live.
+- Books: real covers (archive.org / Open Library) with a generated fallback (migration 0016).
 
 ## Needs credentials or authorisation (implemented, not live-tested)
 
