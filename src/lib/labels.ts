@@ -77,9 +77,9 @@ export const PRIORITY_STYLE: Record<E["task_priority"], string> = {
 };
 
 export const NOTIFICATION_CATEGORIES = [
-  ["reminders", "Reminders", "Daily, weekly, monthly and prospecting reminders"],
-  ["deadlines", "Deadlines", "Overdue tasks and approaching goal deadlines"],
-  ["performance", "Performance", "Performance summaries and book recommendations"],
+  ["reminders", "Reminders", "Daily, weekly, monthly and prospecting reminders. E-mail: monthly goals only"],
+  ["deadlines", "Deadlines", "Overdue tasks and approaching goal deadlines. E-mail: monthly goals only"],
+  ["performance", "Performance", "Performance summaries (in the app) and book recommendations"],
   ["accountability", "Accountability", "Spin outcomes and accountability updates"],
   ["assignment", "Assignments", "Administrator assignment changes"],
   ["profile", "Profile changes", "Profile modification alerts (administrators)"],

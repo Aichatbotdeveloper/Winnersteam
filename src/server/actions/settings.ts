@@ -315,7 +315,7 @@ export async function deliverPendingNow(_prev: ActionResult): Promise<ActionResu
   try {
     await assertUser(["super_admin"]);
     const r = await dispatchNotifications(200);
-    return { ok: true, message: `E-mail: ${r.email.sent} sent, ${r.email.failed} failed, ${r.email.skipped} skipped. Push: ${r.push.sent} sent.` };
+    return { ok: true, message: `E-mail: ${r.email.sent} sent, ${r.email.failed} failed, ${r.email.skipped} skipped${r.email.held ? `, waiting (e-mail limit reached)` : ""}. Push: ${r.push.sent} sent.` };
   } catch (e) { return fail(e); }
 }
 

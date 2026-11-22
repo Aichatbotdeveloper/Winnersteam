@@ -53,6 +53,7 @@ Last updated: 22 Nov 2026
 - Scheduling: Supabase pg_cron runs reminders hourly and delivery every 10 minutes (single-use database tokens authorise calls to the app; verified locally end-to-end).
 - Service updates: 18 approved sources active across 9 categories (confirmed fetching in production); articles delivered by each member's service categories, with an instant 30-day catch-up when a member adds a service and AI summaries added gradually in the background.
 - All planned integrations are live.
+- E-mail quota (Resend free plan ≈100/day): routine reminders, deadline alerts and daily performance summaries go in the app and by push only; monthly-goal reminders and monthly-goal deadlines are still e-mailed (migration 0017). If Resend replies "limit reached" (HTTP 429), e-mails wait and are sent on a later run; anything still waiting after 3 days is dropped as out of date.
 - Books: real covers (archive.org / Open Library) with a generated fallback (migration 0016).
 
 ## Needs credentials or authorisation (implemented, not live-tested)

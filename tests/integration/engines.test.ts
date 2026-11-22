@@ -186,6 +186,20 @@ describe("notifications & reminders", () => {
     expect(data?.length).toBe(1);
   });
 
+  it("routine reminder e-mails are off; monthly-goal reminders and deadlines are still e-mailed", async () => {
+    const m = await createMember(superA.client, "mailquota", admin.id);
+    const w = await service.from("weekly_goals").insert({ owner_id: m.id, title: "W", unit: "u", target: 5, week_start: addDays(today, -((new Date(today).getUTCDay() + 6) % 7)), deadline: today });
+    const mo = await service.from("monthly_goals").insert({ owner_id: m.id, title: "M", unit: "u", target: 5, month_start: today.slice(0, 8) + "01", deadline: today });
+    expect([w.error?.message, mo.error?.message]).toEqual([undefined, undefined]);
+    for (const k of ["daily_plan", "monthly_goals", "goal_deadlines"]) await superA.client.rpc("send_reminder_now", { p_kind: k });
+    const { data } = await service.from("notifications").select("type,email_status").eq("user_id", m.id);
+    const status = Object.fromEntries((data ?? []).map((n) => [n.type, n.email_status]));
+    expect(status["reminder.daily_plan"]).toBe("skipped");
+    expect(status["reminder.goal_deadlines"]).toBe("skipped");
+    expect(status["reminder.monthly_goals"]).toBe("pending");
+    expect(status["reminder.monthly_goal_deadlines"]).toBe("pending");
+  });
+
   it("profile changes notify the assigned admin and Super Admin", async () => {
     const m = await createMember(superA.client, "profchg", admin.id);
     await m.client.from("profiles").update({ job_title: "Senior Analyst" }).eq("id", m.id);

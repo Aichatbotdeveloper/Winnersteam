@@ -26,8 +26,15 @@ export async function sendEmail(to: string, subject: string, html: string) {
     body: JSON.stringify({ from: emailFrom, to: [to], subject, html }),
     signal: AbortSignal.timeout(15000),
   });
-  if (!res.ok) throw new Error(`Resend HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new EmailError(res.status, `Resend HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
+
+class EmailError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
+/** E-mails still waiting after this long (e.g. held back by the daily quota) are dropped as out of date. */
+const EMAIL_MAX_AGE_MS = 3 * 86_400_000;
 
 /** Deliver pending e-mail and push notifications. Idempotent and bounded per run. */
 export async function dispatchNotifications(limit = 200) {
@@ -36,15 +43,17 @@ export async function dispatchNotifications(limit = 200) {
   const emailOn = Boolean(cfg.resendApiKey && cfg.emailFrom);
   const pushOn = Boolean(env.vapidPublicKey && cfg.vapidPrivateKey && cfg.vapidSubject);
   if (pushOn) setVapidDetails(cfg.vapidSubject, env.vapidPublicKey, cfg.vapidPrivateKey);
-  const out = { email: { sent: 0, failed: 0, skipped: 0 }, push: { sent: 0, failed: 0, skipped: 0 }, emailConfigured: emailOn, pushConfigured: pushOn };
+  const out = { email: { sent: 0, failed: 0, skipped: 0, held: 0 }, push: { sent: 0, failed: 0, skipped: 0 }, emailConfigured: emailOn, pushConfigured: pushOn };
 
-  const { data: emails } = await db.from("notifications").select("id,title,body,link,attempts,user:profiles!notifications_user_id_fkey(email,status)")
+  const { data: emails } = await db.from("notifications").select("id,title,body,link,attempts,created_at,user:profiles!notifications_user_id_fkey(email,status)")
     .eq("email_status", "pending").order("created_at").limit(limit);
   for (const n of emails ?? []) {
     const user = n.user as unknown as { email: string; status: string } | null;
-    if (!emailOn || !user || user.status === "removed" || user.status === "deactivated") {
+    const expired = Date.now() - new Date(n.created_at).getTime() > EMAIL_MAX_AGE_MS;
+    if (!emailOn || !user || user.status === "removed" || user.status === "deactivated" || expired) {
       await db.from("notifications").update({ email_status: "skipped" }).eq("id", n.id);
-      await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "skipped", detail: emailOn ? "inactive account" : "e-mail provider not configured" });
+      await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "skipped",
+        detail: !emailOn ? "e-mail provider not configured" : expired ? "out of date (waited more than 3 days)" : "inactive account" });
       out.email.skipped++; continue;
     }
     // Claim the row first (optimistic lock on `attempts`) so concurrent runs never double-send.
@@ -57,6 +66,14 @@ export async function dispatchNotifications(limit = 200) {
       await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "sent" });
       out.email.sent++;
     } catch (e) {
+      if (e instanceof EmailError && e.status === 429) {
+        // Daily/monthly quota or rate limit reached: keep the e-mail waiting (the attempt
+        // does not count) and stop for this run. Later runs send it once the quota allows.
+        await db.from("notifications").update({ attempts: n.attempts }).eq("id", n.id);
+        await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "skipped", detail: `held: e-mail limit reached (${e.message.slice(0, 200)})` });
+        out.email.held++;
+        break;
+      }
       const final = n.attempts + 1 >= 3;
       await db.from("notifications").update({ email_status: final ? "failed" : "pending" }).eq("id", n.id);
       await db.from("notification_delivery_logs").insert({ notification_id: n.id, channel: "email", status: "failed", detail: e instanceof Error ? e.message.slice(0, 300) : "error" });
