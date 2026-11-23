@@ -35,22 +35,6 @@ export default function PrivacyPage() {
         your records. We do not sell your personal information.
       </p>
 
-      <h2>Service providers</h2>
-      <p>We use trusted providers to run the platform:</p>
-      <ul>
-        <li>Supabase (database, sign-in and file storage)</li>
-        <li>Vercel (website hosting)</li>
-        <li>Resend (sending emails)</li>
-        <li>Google Gemini (the LEX assistant and update summaries; we do not send your name or personal records to it)</li>
-        <li>Your browser’s notification service (only if you turn on browser notifications)</li>
-      </ul>
-
-      <h2>How long we keep it</h2>
-      <p>
-        We keep your information while your account is active. If your account is removed, it is deactivated and sign-in is
-        blocked, but your history is kept so that team records remain accurate.
-      </p>
-
       <h2>Your choices and rights</h2>
       <ul>
         <li>You can view and update your profile at any time in your workspace.</li>
