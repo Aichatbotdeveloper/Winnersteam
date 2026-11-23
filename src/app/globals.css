@@ -193,3 +193,7 @@
   .no-print { display: none !important; }
   body { background: white; }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}

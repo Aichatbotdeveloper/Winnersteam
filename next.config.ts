@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["exceljs", "web-push"],
   images: {
+    qualities: [75, 90],
+    formats: ["image/avif", "image/webp"],
     remotePatterns: supabaseHost
       ? [{ protocol: supabaseHost === "127.0.0.1" ? "http" : "https", hostname: supabaseHost, pathname: "/storage/v1/**" }]
       : [],
