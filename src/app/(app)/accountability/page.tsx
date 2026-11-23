@@ -7,12 +7,15 @@ import { SpinWheel } from "@/components/accountability/SpinWheel";
 import { AccommodationToggle, LedgerStatusForm } from "@/components/accountability/Forms";
 import { CATEGORY_LABEL, CONSEQUENCE_COLOR, CONSEQUENCE_ICON, CONSEQUENCE_LABEL, CONSEQUENCE_LIMITS, LEVEL_STYLE, consequenceText } from "@/lib/labels";
 import { fmtDate, fmtDateTime, naira, pct } from "@/lib/format";
+import { checklistLabel, fmtDeadline, type ChecklistKind } from "@/lib/checklists";
+import { syncMyChecklists } from "@/server/checklists";
 
 export const metadata: Metadata = { title: "Accountability" };
 const PAGE = 20;
 
-export default async function AccountabilityPage({ searchParams }: { searchParams: Promise<{ page?: string; status?: string; category?: string }> }) {
+export default async function AccountabilityPage({ searchParams }: { searchParams: Promise<{ page?: string; status?: string; category?: string; event?: string }> }) {
   const me = await requireUser();
+  await syncMyChecklists();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
   const supabase = await createClient();
@@ -20,7 +23,7 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
 
   // Ledger (RLS scopes rows: own / assigned team / organisation)
   let lq = supabase.from("accountability_ledger")
-    .select("*, event:accountability_events(period_type,period_start,performance_pct,level,triggering_category), member:profiles!accountability_ledger_user_id_fkey(full_name)", { count: "exact" })
+    .select("*, event:accountability_events(period_type,period_start,performance_pct,level,triggering_category,checklist:checklists(title,kind,deadline)), member:profiles!accountability_ledger_user_id_fkey(full_name)", { count: "exact" })
     .order("assigned_at", { ascending: false }).range((page - 1) * PAGE, page * PAGE - 1);
   if (sp.status && ["assigned", "in_progress", "completed"].includes(sp.status)) lq = lq.eq("status", sp.status as "assigned");
   if (sp.category && Object.keys(CONSEQUENCE_LABEL).includes(sp.category)) lq = lq.eq("category", sp.category as "frog_jumps");
@@ -28,14 +31,19 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
   const [ledger, settings, openEvents, accHistory, stats] = await Promise.all([
     lq,
     supabase.from("accountability_settings").select("*").single(),
-    isMember ? supabase.from("accountability_events").select("*, accountability_ledger(id,revealed_at,winning_index)").eq("user_id", me.id).order("created_at", { ascending: true }) : Promise.resolve({ data: [] }),
+    isMember ? supabase.from("accountability_events").select("*, checklist:checklists(title,kind), accountability_ledger(id,revealed_at,winning_index)").eq("user_id", me.id).order("created_at", { ascending: true }) : Promise.resolve({ data: [] }),
     isMember ? supabase.from("accommodation_changes").select("*").eq("user_id", me.id).order("created_at", { ascending: false }).limit(5) : Promise.resolve({ data: [] }),
     supabase.from("accountability_ledger").select("status,category,quantity"),
   ]);
   const s = settings.data!;
-  type Ev = { id: string; period_type: string; period_start: string; performance_pct: number; level: "low" | "moderate" | "high"; triggering_category: keyof typeof CATEGORY_LABEL; accountability_ledger: { id: string; revealed_at: string | null; winning_index: number } | null };
-  const events = (openEvents.data ?? []) as unknown as Ev[];
-  const due = events.find((e) => !e.accountability_ledger) ?? events.find((e) => e.accountability_ledger && !e.accountability_ledger.revealed_at);
+  type Ev = { id: string; period_type: string; period_start: string; performance_pct: number; level: "low" | "moderate" | "high"; triggering_category: keyof typeof CATEGORY_LABEL;
+    auto_draw_at: string | null; checklist: { title: string; kind: ChecklistKind } | null; accountability_ledger: { id: string; revealed_at: string | null; winning_index: number } | null };
+  const events = ((openEvents.data ?? []) as unknown as (Ev & { accountability_ledger: Ev["accountability_ledger"] | Ev["accountability_ledger"][] })[])
+    .map((e) => ({ ...e, accountability_ledger: Array.isArray(e.accountability_ledger) ? e.accountability_ledger[0] ?? null : e.accountability_ledger }));
+  // Checklist spins first (soonest spin-by time first), then any older period-based ones.
+  const waiting = events.filter((e) => !e.accountability_ledger || !e.accountability_ledger.revealed_at)
+    .sort((a, b) => (a.checklist ? 0 : 1) - (b.checklist ? 0 : 1) || String(a.auto_draw_at ?? "").localeCompare(String(b.auto_draw_at ?? "")));
+  const due = waiting.find((e) => e.id === sp.event) ?? waiting.find((e) => !e.accountability_ledger) ?? waiting[0];
   const wheel = due ? (await supabase.rpc("get_wheel", { p_event: due.id })).data as { sectors: never[]; drawn: boolean; winning_index?: number; accommodation: boolean } : null;
   const all = stats.data ?? [];
   const open = all.filter((x) => x.status !== "completed");
@@ -45,7 +53,7 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
   return (
     <>
       <PageHeader eyebrow="Governance & accountability" title={isMember ? "Accountability & Spin Wheel" : "Accountability Ledger"}
-        description={isMember ? "When a closed period falls below target, an accountability spin becomes available. The outcome is selected securely on the server and assigned immediately."
+        description={isMember ? "When a checklist is graded below the pass mark, a spin opens straight away. The outcome is selected securely on the server and assigned immediately."
           : me.role === "super_admin" ? "Organisation-wide accountability outcomes. Outcomes are assigned automatically — there is no approval step." : "Accountability outcomes for your assigned team members."}
         actions={<>
           {me.role === "super_admin" && <ButtonLink href="/settings/accountability" variant="outline" icon="tune">Sector editor & thresholds</ButtonLink>}
@@ -58,13 +66,17 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
             <div className="mb-5 flex gap-3 rounded-xl border-l-4 border-accent-amber bg-surface p-4 shadow-card">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-amber/10 text-accent-amber"><Icon name="warning" /></span>
               <div>
-                <Badge tone="amber">Accountability triggered</Badge>
-                <p className="mt-1 text-body-md text-ink">
-                  {due.period_type[0]!.toUpperCase() + due.period_type.slice(1)} period starting {fmtDate(due.period_start)}: achievement <strong>{pct(due.performance_pct)}</strong> ·
-                  level <span className={cn("rounded px-1.5 text-label-sm", LEVEL_STYLE[due.level].cls)}>{LEVEL_STYLE[due.level].label}</span> ·
-                  weakest category <strong>{CATEGORY_LABEL[due.triggering_category]}</strong>.
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="amber">Accountability triggered</Badge>
+                  <span className={cn("rounded px-1.5 text-label-sm", LEVEL_STYLE[due.level].cls)}>{LEVEL_STYLE[due.level].label} level</span>
+                  {waiting.length > 1 && <Badge tone="neutral">{waiting.length} spins waiting</Badge>}
+                </div>
+                <p className="mt-1 font-heading text-body-lg text-ink">
+                  {due.checklist ? <>Your {checklistLabel(due.checklist.title, due.checklist.kind)} scored {Number(due.performance_pct)}%. Spin the wheel</>
+                    : <>Your {due.period_type} score was {pct(due.performance_pct)} (period starting {fmtDate(due.period_start)}). Spin the wheel</>}
                 </p>
-                <p className="text-body-sm text-muted-text">{due.accountability_ledger ? "The system has already drawn your outcome automatically — reveal it below." : `If you do not spin within ${s.auto_draw_after_hours} hours, the system draws automatically.`}</p>
+                <p className="text-body-sm text-muted-text">{due.accountability_ledger ? `The ${s.grace_minutes}-minute window passed, so the system spun for you. Reveal the outcome below.`
+                  : due.auto_draw_at ? `Spin by ${fmtDeadline(due.auto_draw_at)}, or the system will spin for you.` : "Spin the wheel to reveal your outcome."}</p>
               </div>
             </div>
           )}
@@ -143,15 +155,16 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
         {(ledger.data ?? []).length === 0 ? <div className="px-5 pb-5"><EmptyState icon="verified" title="No accountability records">Outcomes appear here as soon as they are selected.</EmptyState></div> : (
           <>
             <Table>
-              <thead><tr>{!isMember && <Th>Team member</Th>}<Th>Period</Th><Th>Trigger</Th><Th>Outcome</Th><Th>Selected</Th><Th>Status</Th><Th>Update</Th></tr></thead>
+              <thead><tr>{!isMember && <Th>Team member</Th>}<Th>Checklist</Th><Th>Score</Th><Th>Outcome</Th><Th>Selected</Th><Th>Status</Th><Th>Update</Th></tr></thead>
               <tbody>
                 {(ledger.data ?? []).map((l) => {
-                  const ev = l.event as unknown as { period_type: string; period_start: string; performance_pct: number; level: "low"; triggering_category: keyof typeof CATEGORY_LABEL };
+                  const ev = l.event as unknown as { period_type: string; period_start: string; performance_pct: number; level: "low"; triggering_category: keyof typeof CATEGORY_LABEL; checklist: { title: string; kind: ChecklistKind; deadline: string } | null };
                   return (
                     <tr key={l.id}>
                       {!isMember && <Td className="font-medium text-ink">{(l.member as unknown as { full_name: string } | null)?.full_name ?? "—"}</Td>}
-                      <Td className="whitespace-nowrap text-muted-text">{ev.period_type} · {fmtDate(ev.period_start)}</Td>
-                      <Td><div className="text-ink">{CATEGORY_LABEL[ev.triggering_category]}</div><div className="text-body-sm text-muted-text">{pct(ev.performance_pct)} · <span className={cn("rounded px-1", LEVEL_STYLE[ev.level].cls)}>{LEVEL_STYLE[ev.level].label}</span></div></Td>
+                      <Td>{ev.checklist ? <><div className="text-ink">{checklistLabel(ev.checklist.title, ev.checklist.kind)}</div><div className="text-body-sm text-muted-text">Due {fmtDate(ev.checklist.deadline, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</div></>
+                        : <><div className="text-ink">{CATEGORY_LABEL[ev.triggering_category]}</div><div className="text-body-sm text-muted-text">{ev.period_type} · {fmtDate(ev.period_start)}</div></>}</Td>
+                      <Td className="whitespace-nowrap">{pct(ev.performance_pct)} <span className={cn("rounded px-1 text-body-sm", LEVEL_STYLE[ev.level].cls)}>{LEVEL_STYLE[ev.level].label}</span></Td>
                       <Td>
                         <span className="flex items-center gap-1.5 font-medium text-ink"><Icon name={CONSEQUENCE_ICON[l.category]} className="text-[18px]" />{consequenceText(l.category, l.quantity)}</span>
                         {l.accommodation_active && <Badge tone="green" className="mt-1">Accommodation</Badge>}

@@ -2,7 +2,7 @@
 
 **Office Productivity, Accountability & Personal Development Management System**
 
-A multi-user, role-based workspace for a team of 200–300 people. It covers daily to-dos, weekly/monthly goals, prospecting, a weighted performance engine, an accountability spin wheel, personalised book recommendations, professional service updates, reminders, motivational quotes, the **LEX** AI platform assistant, reports and audit logs.
+A multi-user, role-based workspace for a team of 200–300 people. It covers daily to-dos, weekly/monthly goals, prospecting, checklists with deadlines (each graded on its own), an accountability spin wheel, personalised book recommendations, professional service updates, reminders, motivational quotes, the **LEX** AI platform assistant, reports and audit logs.
 
 | | |
 |---|---|

@@ -42,13 +42,24 @@ test("Super Admin approves and assigns; member signs in and sees a motivational 
   await expect(member.getByRole("dialog").getByText(/Welcome back/)).toBeVisible();
   await member.getByRole("button", { name: "Let's get to work" }).click();
 
-  // Create and complete a task — the score updates live.
-  await member.getByRole("button", { name: "Add New Task" }).click();
-  await member.getByRole("dialog").locator("input[name=title]").fill("E2E first task");
-  await member.getByRole("dialog").getByRole("button", { name: "Create task" }).click();
-  await expect(member.getByText("E2E first task")).toBeVisible();
-  await member.getByRole("button", { name: 'Mark "E2E first task" completed' }).click();
-  await expect(member.getByText("1/1 tasks completed")).toBeVisible();
+  // Checklist: create, mark progress (live score), submit, then spin.
+  member.on("dialog", (d) => d.accept());
+  await member.getByRole("button", { name: "New checklist" }).first().click();
+  const dlg = member.getByRole("dialog");
+  await dlg.locator("input[name=title]").fill("E2E list");
+  await dlg.getByLabel("Item 1", { exact: true }).fill("First item");
+  await dlg.getByLabel("Item 2", { exact: true }).fill("Second item");
+  await dlg.getByRole("button", { name: "Create checklist" }).click();
+  const card = member.getByRole("article", { name: "E2E list to-do list" }).first();
+  await expect(card).toBeVisible();
+  await card.getByRole("radiogroup", { name: "Progress for First item" }).getByRole("radio", { name: "100%" }).click();
+  await expect(card.locator("[data-score]")).toHaveText("50%");
+  await card.getByRole("button", { name: "Submit now" }).click();
+  await expect(member.getByText("Your E2E list to-do list scored 50%. Spin the wheel").first()).toBeVisible({ timeout: 15_000 });
+  await member.goto("/accountability");
+  await expect(member.getByText("Your E2E list to-do list scored 50%. Spin the wheel")).toBeVisible();
+  await member.getByRole("button", { name: "SPIN WHEEL NOW" }).click();
+  await expect(member.getByText(/Spun by member/).first()).toBeVisible({ timeout: 20_000 });
   await ctx.close();
 });
 
@@ -66,7 +77,7 @@ test("LEX answers platform questions (knowledge base mode without AI key)", asyn
   await login(page, "member003@demo.winners-team.local");
   await page.goto("/lex");
   await page.getByRole("button", { name: "How is my performance calculated?" }).click();
-  await expect(page.getByText(/weighted average of five categories/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Every checklist is scored on its own/)).toBeVisible({ timeout: 20_000 });
 });
 
 test("reports export as CSV, Excel and PDF", async ({ page }) => {
@@ -77,14 +88,14 @@ test("reports export as CSV, Excel and PDF", async ({ page }) => {
     expect(res.headers()["content-disposition"]).toContain(`.${f}`);
     expect((await res.body()).length).toBeGreaterThan(100);
   }
-  for (const t of ["prospecting", "goals", "development", "tasks", "accountability"]) {
+  for (const t of ["checklists", "checklist_items", "development", "accountability"]) {
     for (const period of ["daily", "weekly", "monthly"]) {
       const res = await page.request.get(`/api/reports/export?type=${t}&period=${period}&format=csv`);
       expect(res.status(), `${t}/${period}`).toBe(200);
     }
   }
-  const csv = await (await page.request.get("/api/reports/export?type=prospecting&period=weekly&format=csv")).text();
-  expect(csv).toContain("Achievement %");
+  const csv = await (await page.request.get("/api/reports/export?type=checklists&period=weekly&format=csv")).text();
+  expect(csv).toContain("Score %");
 });
 
 test("staff pages render without errors", async ({ page }) => {

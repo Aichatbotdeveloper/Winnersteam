@@ -9,8 +9,8 @@ Last updated: 22 Nov 2026
 | 1. Inspection & foundation | ✅ All 36 Stitch screens and DESIGN.md inspected. Tokens ported. Logo, favicon and LEX icon done. Shell built. |
 | 2. Supabase & auth | ✅ 11 migrations, RLS on every table. Registration, e-mail verification, approval, invitations and password recovery. Branded e-mail templates. |
 | 3. Hierarchy | ✅ Three dashboards. Approvals, administrator invitations, assignment/transfer, deactivation and soft removal (admins may remove any team member). |
-| 4. Productivity | ✅ Daily to-dos, additional tasks, weekly/monthly goals, prospecting targets and activity log. Closed periods are locked. |
-| 5. Performance | ✅ Weighted engine with caps and normalisation, live and recorded snapshots, versioned corrections, member/team/organisation views. |
+| 4. Productivity | ✅ Checklists (to-do, weekly goals, monthly goals, prospecting), each with its own title and deadline; items 0/25/50/75/100% (prospecting by count ÷ target); Submit now; deadlines move earlier only; locked once graded. |
+| 5. Performance | ✅ Each checklist scored on its own (average of its items), no weights; day/week/month averages for information; recorded snapshots, versioned corrections, member/team/organisation views. |
 | 6. Accountability | ✅ Four categories only, DB-enforced limits, NGN only. Secure server-side draw, no rerolls, no approval gate. Auto-draw, accommodation override, ledger, sector editor. Animated wheel with sound and confetti. |
 | 7. Notifications | ✅ In-app (Realtime bell), preferences, scheduled reminders with dedupe. E-mail (Resend) and Web Push delivery code. |
 | 8. Service updates | ✅ Approved-source RSS/Atom ingestion (SSRF guard), category matching, AI summaries, feed, save/read. |
@@ -29,7 +29,8 @@ Last updated: 22 Nov 2026
   - Transfer moves access immediately and keeps history; administrators cannot transfer.
   - Any administrator can remove any team member but cannot read that member's data, and cannot remove administrators.
   - Append-only audit log (even for the service role); service-role-only cron functions.
-  - Performance maths: 8/10 = 80%; weighted normalisation = 81.67; overachievement capping; weights must total 100.
+  - Checklist maths: 100/75/50/25/0 = 50%; prospecting 12 of 20 = 60% (capped at 100%); averages count every checklist equally.
+  - Checklist rules: grading at the deadline or on Submit now; a spin per failed checklist with a 15-minute window, then the system spins; deadlines earlier-only; locked after grading; deletion only within 15 minutes or while empty.
   - All four limits plus a rejected fifth category; NGN only.
   - Event → spin → assigned with no approval; no reroll; no duplicate events; auto-draw; accommodation excludes physical options.
   - Reminder dedupe; profile-change notifications; quote rotation; role-filtered LEX knowledge base.
@@ -68,7 +69,7 @@ Last updated: 22 Nov 2026
 ## Known limitations and decisions
 
 - **Book links:** public-domain titles link to Project Gutenberg *search* pages and open-access titles to the OpenStax subject page. Exact URLs could not be verified from the sandbox, so none were guessed. The Super Admin can replace them.
-- **Closed periods are locked** for ordinary users so evaluated results cannot be gamed. Corrections go through the Super Admin's audited correction flow.
+- **Graded checklists are locked** so results cannot be changed afterwards. Old tasks, goals and prospecting records from before checklists are kept as read-only history.
 - **Monthly prospecting:** weekly targets count toward the month in which the week starts.
 - **Vercel crons:** the default `vercel.json` uses two daily crons (works on every plan). Hourly reminders and frequent e-mail delivery need pg_cron (`supabase/sql/schedule_pg_cron.sql`) or Vercel Pro (see docs/DEPLOYMENT.md).
 - **Not implemented:** the Stitch "manager sign-off" modal, because it conflicts with the mandatory no-approval rule.

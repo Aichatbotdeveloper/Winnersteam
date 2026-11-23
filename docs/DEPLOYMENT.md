@@ -32,7 +32,7 @@
    - Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`.
    - Optional: AI, Resend and VAPID keys.
 3. `vercel.json` defines two **daily** crons, which are compatible with every Vercel plan:
-   - `/api/cron/evaluations` at 00:15 Lagos.
+   - `/api/cron/evaluations` at 00:15 Lagos (history snapshots and weekly book recommendations; checklists are graded every minute by pg_cron).
    - `/api/cron/daily` (reminders, delivery and service updates) at 07:05 Lagos.
 
 ### Recommended production schedule
@@ -82,6 +82,6 @@ The AI layer (`src/server/ai/provider.ts`) is a provider interface. Anthropic is
 
 | AI (LEX + summaries) | Gemini API key from Google AI Studio in `AI_API_KEY`; `AI_PROVIDER=gemini`, `AI_MODEL=gemini-3.8-flash` (auto-fallback to other Flash/Flash-Lite models). A Google One / AI Pro subscription does not cover API usage — API billing is set per project in AI Studio. |
 
-| Scheduling | Supabase pg_cron (`supabase/sql/schedule_pg_cron.sql`): reminders hourly, e-mail/push delivery every 10 min, service updates every 6 h — calls to the app use single-use database tokens (no secret in SQL). Vercel Cron still runs daily evaluations. |
+| Scheduling | Supabase pg_cron (`supabase/sql/schedule_pg_cron.sql`): checklist grading every minute (in-database), reminders hourly, e-mail/push delivery every 2 min, service updates every 6 h — calls to the app use single-use database tokens (no secret in SQL). Vercel Cron still runs daily evaluations. |
 
 Super Admin tools: **Settings → General → Integrations** has "Send test e-mail to me" and "Deliver pending notifications now" and "Test AI connection" (shows per-model diagnostics on failure).

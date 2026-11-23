@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Badge, Card, CardHeader, EmptyState, Icon, PageHeader, Progress, Tabs } from "@/components/ui";
+import { Badge, Card, CardHeader, EmptyState, Icon, PageHeader, Tabs } from "@/components/ui";
 import { PerformanceView } from "@/components/performance/PerformanceView";
 import { ProfileView } from "@/components/profile/ProfileView";
-import { TaskList, type TaskItem } from "@/components/tasks/TaskList";
+import { ChecklistCard } from "@/components/checklists/ChecklistCard";
+import { loadChecklists } from "@/server/checklists";
 import { ActiveToggle, CorrectionButton, MakeAdminButton, RemoveMemberButton, TransferButton } from "@/components/governance/Forms";
-import { CONSEQUENCE_ICON, PROSPECTING_LABEL, consequenceText } from "@/lib/labels";
-import { addDays, fmtDate, nowTimeInOrg, num, pct, todayInOrg, weekStart, monthStart } from "@/lib/format";
+import { CONSEQUENCE_ICON, consequenceText } from "@/lib/labels";
+import { fmtDate, pct } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Team member" };
 
@@ -23,7 +24,6 @@ export default async function MemberDetail({ params, searchParams }: { params: P
   const { data: member } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
   if (!member) notFound();
   const tab = ["performance", "work", "accountability", "profile"].includes(sp.tab ?? "") ? sp.tab! : "performance";
-  const today = todayInOrg();
   const base = `/team/${id}`;
   const isSuper = me.role === "super_admin";
   const [assignment, admins] = await Promise.all([
@@ -37,47 +37,19 @@ export default async function MemberDetail({ params, searchParams }: { params: P
     const period = (["daily", "weekly", "monthly"].includes(sp.period ?? "") ? sp.period : "weekly") as "daily" | "weekly" | "monthly";
     body = <PerformanceView userId={id} period={period} basePath={`${base}?tab=performance`} />;
   } else if (tab === "work") {
-    const [tasks, wg, mg, tgt, act] = await Promise.all([
-      supabase.from("tasks").select("*, category:task_categories(name,color)").eq("owner_id", id).is("deleted_at", null).gte("due_date", addDays(today, -6)).lte("due_date", today).order("due_date", { ascending: false }),
-      supabase.from("weekly_goals").select("*").eq("owner_id", id).eq("week_start", weekStart(today)).is("deleted_at", null),
-      supabase.from("monthly_goals").select("*").eq("owner_id", id).eq("month_start", monthStart(today)).is("deleted_at", null),
-      supabase.from("prospecting_targets").select("activity,target").eq("owner_id", id).eq("period", "daily").eq("period_start", today),
-      supabase.from("prospecting_activities").select("activity,quantity").eq("owner_id", id).eq("occurred_on", today),
-    ]);
-    const all = (tasks.data ?? []) as unknown as TaskItem[];
-    const todays = all.filter((t) => t.due_date === today);
-    const outstanding = all.filter((t) => t.status !== "completed");
-    const actual = new Map<string, number>();
-    for (const a of act.data ?? []) actual.set(a.activity, (actual.get(a.activity) ?? 0) + a.quantity);
+    const { open, closed } = await loadChecklists({ ownerId: id, closedSinceDays: 14 });
     body = (
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card className="p-5 lg:col-span-2">
-          <CardHeader icon="checklist" title={`Today's tasks (${todays.filter((t) => t.status === "completed").length}/${todays.length} done)`} eyebrow="Read-only monitoring" />
-          <div className="mt-3"><TaskList tasks={todays} today={today} categories={[]} readOnly nowTime={nowTimeInOrg()} empty={<EmptyState icon="event_busy" title="No tasks planned today" />} /></div>
-          <p className="mt-3 text-body-sm text-muted-text">{outstanding.length} incomplete task(s) in the last 7 days.</p>
-        </Card>
-        {[["Weekly goals", wg.data ?? []], ["Monthly goals", mg.data ?? []]].map(([title, goals]) => (
-          <Card key={title as string} className="p-5">
-            <CardHeader icon="flag" title={title as string} />
-            <div className="mt-3 space-y-3">
-              {(goals as { id: string; title: string; target: number; achieved: number; unit: string }[]).length === 0 && <p className="text-body-md text-muted-text">No goals set.</p>}
-              {(goals as { id: string; title: string; target: number; achieved: number; unit: string }[]).map((g) => (
-                <div key={g.id}><div className="flex justify-between text-body-md"><span className="text-ink">{g.title}</span><span>{num(g.achieved)}/{num(g.target)} {g.unit}</span></div>
-                  <Progress value={(g.achieved / g.target) * 100} className="mt-1" /></div>
-              ))}
-            </div>
-          </Card>
-        ))}
-        <Card className="p-5 lg:col-span-2">
-          <CardHeader icon="contact_page" title="Prospecting today" />
-          <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {(tgt.data ?? []).length === 0 && <p className="text-body-md text-muted-text">No prospecting targets set for today.</p>}
-            {(tgt.data ?? []).map((t) => (
-              <div key={t.activity} className="rounded-lg bg-surface-alt px-3 py-2"><div className="text-body-sm text-muted-text">{PROSPECTING_LABEL[t.activity]}</div>
-                <div className="font-heading text-heading-md text-ink">{actual.get(t.activity) ?? 0}<span className="text-body-sm text-faint-text">/{t.target}</span></div></div>
-            ))}
-          </div>
-        </Card>
+      <div className="space-y-6">
+        <section>
+          <h2 className="mb-3 font-heading text-heading-md text-ink">Open checklists <span className="text-body-md font-normal text-muted-text">· read-only</span></h2>
+          {open.length === 0 ? <Card><EmptyState icon="event_busy" title="No open checklists" /></Card>
+            : <div className="grid gap-4 xl:grid-cols-2">{open.map((c) => <ChecklistCard key={c.id} checklist={c} editable={false} spinFor={false} />)}</div>}
+        </section>
+        <section>
+          <h2 className="mb-3 font-heading text-heading-md text-ink">Graded <span className="text-body-md font-normal text-muted-text">· last 14 days</span></h2>
+          {closed.length === 0 ? <Card><EmptyState icon="history" title="Nothing graded in the last 14 days" /></Card>
+            : <div className="grid gap-4 xl:grid-cols-2">{closed.map((c) => <ChecklistCard key={c.id} checklist={c} editable={false} spinFor={false} />)}</div>}
+        </section>
       </div>
     );
   } else if (tab === "accountability") {
@@ -119,7 +91,7 @@ export default async function MemberDetail({ params, searchParams }: { params: P
       {member.status !== "approved" && <p className="mb-4 rounded-lg bg-accent-amber/10 px-3 py-2 text-body-md text-warning-text">Account status: {member.status}{member.status_reason ? ` — ${member.status_reason}` : ""}</p>}
       <Tabs active={tab} items={[
         { key: "performance", href: `${base}?tab=performance`, label: "Performance", icon: "monitoring" },
-        { key: "work", href: `${base}?tab=work`, label: "Tasks & goals", icon: "checklist" },
+        { key: "work", href: `${base}?tab=work`, label: "Checklists", icon: "checklist" },
         { key: "accountability", href: `${base}?tab=accountability`, label: "Accountability", icon: "cyclone" },
         { key: "profile", href: `${base}?tab=profile`, label: "Profile & changes", icon: "badge" },
       ]} />

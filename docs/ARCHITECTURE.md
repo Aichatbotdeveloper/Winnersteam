@@ -71,14 +71,21 @@ Stitch demo content that conflicted with the brief was removed: "Enterprise HQ"/
 
 ## Business rules (enforced in Postgres)
 
-**Performance** (`private.compute_performance`): weights 30/20/20/20/10 by default, configurable, with a CHECK that they total 100. Each category is capped at 100% for scoring, and the raw value is kept for display. Categories with nothing due are excluded and the remaining weights are normalised, so there is never a division by zero. Prospecting uses Σmin(actual, target)/Σtarget per activity. A weekly target replaces daily targets for that week, so activity is never double counted. Closed periods are locked for users. Snapshots are versioned, and corrections create a new audited version.
+**Checklists** (migration 0018, `public.checklists` / `public.checklist_items`):
+- Members create any number of checklists (`todo`, `weekly`, `monthly`, `prospecting`), each with a title and a deadline (stored as `timestamptz`; entered in the organisation time zone).
+- Items are 0/25/50/75/100% (CHECK). Prospecting items have `target`/`achieved` and a calculated percentage, capped at 100%.
+- A checklist's score is the plain average of its items. There are no weights between lists; each checklist is judged on its own.
+- All writes go through SECURITY DEFINER functions (`create_checklist`, `update_checklist`, `add/update/delete_checklist_item`, `submit_checklist`, `delete_checklist`). Direct table writes are revoked. Deadlines can only move earlier, and everything locks at the deadline or on submit. Deleting is allowed only within 15 minutes of creating, or while empty.
+- `private.sweep_checklists()` runs every minute (pg_cron) and on page load (`sync_my_checklists`): closes due checklists, sends a 30-minute "closes soon" reminder, and auto-spins events whose `auto_draw_at` has passed.
+
+**Performance** (`private.compute_performance`): the simple average of all checklists due in the day/week/month (live score while open, final score once closed). It is for information and comparison only; per-type averages use the same shape as before, so snapshots, analytics and reports keep working. The old weighted tables (`tasks`, goals, prospecting) are kept read-only as history.
 
 **Accountability**
 - **Categories:** the `consequence_category` enum has exactly four values. CHECK constraints enforce frog jumps 10–400, leg raising 10–60 minutes, office signatures 1–10, and fines ₦200–₦5,000 with currency always `NGN`.
 - **Levels:** thresholds are ordered with no gaps or overlaps (90/75/50 by default).
-- **Triggering category:** the weakest applicable category. Frog-jump sectors apply to daily to-do (and additional-task) triggers by default.
+- **Trigger:** each checklist that closes below the pass mark creates one event (`accountability_events.checklist_id`, unique) with `auto_draw_at` = deadline (or submit time) + the spin window (15 minutes by default). A spin pressed after that time is recorded as the system's.
 - **Draw:** selection uses `gen_random_bytes` inside a transaction. There is one result per event (unique), and calling spin again returns the same result.
-- **No approval gate.** The outcome is `assigned` on insert. An unspun event is drawn automatically after a configurable window.
+- **No approval gate.** The outcome is `assigned` on insert. An unspun event is drawn automatically when its spin window ends.
 - **Physical accommodation:** user-controlled, takes effect immediately, and is recorded. It excludes physical categories (a ledger CHECK enforces this).
 - **Fines** are recorded only and never deducted.
 

@@ -6,11 +6,10 @@ export type NavSection = { title: string; items: NavItem[] };
 const productivity: NavSection = {
   title: "Productivity & Execution",
   items: [
-    { href: "/tasks", label: "My Tasks & Daily To-Dos", icon: "check_circle" },
+    { href: "/tasks", label: "My To-Do Checklists", icon: "checklist" },
     { href: "/weekly-goals", label: "Weekly Goals", icon: "track_changes" },
     { href: "/monthly-goals", label: "Monthly Goals", icon: "flag" },
-    { href: "/prospecting", label: "Prospecting Management", icon: "contact_page" },
-    { href: "/additional-tasks", label: "Additional Tasks", icon: "assignment_add" },
+    { href: "/prospecting", label: "Prospecting", icon: "contact_page" },
   ],
 };
 

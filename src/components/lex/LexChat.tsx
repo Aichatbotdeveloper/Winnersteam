@@ -8,9 +8,9 @@ import { LexIcon } from "@/components/brand/Logo";
 export type LexMessage = { role: "user" | "assistant"; content: string; sources?: { title: string; link: string | null }[]; mode?: string | null };
 
 const SUGGESTIONS: Record<string, string[]> = {
-  team_member: ["How do I create my daily to-do list?", "How is my performance calculated?", "How does the accountability wheel work?", "Where can I find my book recommendations?"],
+  team_member: ["How do I create a to-do checklist?", "How is my performance calculated?", "How does the accountability wheel work?", "Where can I find my book recommendations?"],
   administrator: ["How do I monitor my team's performance?", "How do I send an announcement to my team?", "Can I remove a team member?", "How is performance calculated?"],
-  super_admin: ["How do I approve a pending registration?", "How do I transfer a member to another administrator?", "How do I change the performance weights?", "How do I configure the accountability wheel?"],
+  super_admin: ["How do I approve a pending registration?", "How do I transfer a member to another administrator?", "How does checklist scoring work?", "How do I configure the accountability wheel?"],
 };
 
 /** Renders **bold**, `code`, [links](/path) and line breaks safely (no HTML injection). */

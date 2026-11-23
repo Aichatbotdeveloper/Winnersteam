@@ -45,17 +45,23 @@ isOneToOne: false
                   ]
                 },"accountability_events": {
                   Row: {
-                    "category_pct": number | null,"created_at": string,"id": string,"level": Database["public"]['Enums']["accountability_level"],"performance_pct": number,"period_end": string,"period_start": string,"period_type": Database["public"]['Enums']["period_type"],"snapshot_id": string | null,"triggering_category": Database["public"]['Enums']["perf_category"],"user_id": string
+                    "auto_draw_at": string | null,"category_pct": number | null,"checklist_id": string | null,"created_at": string,"id": string,"level": Database["public"]['Enums']["accountability_level"],"performance_pct": number,"period_end": string,"period_start": string,"period_type": Database["public"]['Enums']["period_type"],"snapshot_id": string | null,"triggering_category": Database["public"]['Enums']["perf_category"],"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "category_pct"?: number | null,"created_at"?: string,"id"?: string,"level": Database["public"]['Enums']["accountability_level"],"performance_pct": number,"period_end": string,"period_start": string,"period_type": Database["public"]['Enums']["period_type"],"snapshot_id"?: string | null,"triggering_category": Database["public"]['Enums']["perf_category"],"user_id": string
+                    "auto_draw_at"?: string | null,"category_pct"?: number | null,"checklist_id"?: string | null,"created_at"?: string,"id"?: string,"level": Database["public"]['Enums']["accountability_level"],"performance_pct": number,"period_end": string,"period_start": string,"period_type": Database["public"]['Enums']["period_type"],"snapshot_id"?: string | null,"triggering_category": Database["public"]['Enums']["perf_category"],"user_id": string
                   }
                   Update: {
-                    "category_pct"?: number | null,"created_at"?: string,"id"?: string,"level"?: Database["public"]['Enums']["accountability_level"],"performance_pct"?: number,"period_end"?: string,"period_start"?: string,"period_type"?: Database["public"]['Enums']["period_type"],"snapshot_id"?: string | null,"triggering_category"?: Database["public"]['Enums']["perf_category"],"user_id"?: string
+                    "auto_draw_at"?: string | null,"category_pct"?: number | null,"checklist_id"?: string | null,"created_at"?: string,"id"?: string,"level"?: Database["public"]['Enums']["accountability_level"],"performance_pct"?: number,"period_end"?: string,"period_start"?: string,"period_type"?: Database["public"]['Enums']["period_type"],"snapshot_id"?: string | null,"triggering_category"?: Database["public"]['Enums']["perf_category"],"user_id"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "accountability_events_checklist_id_fkey"
+      columns: ["checklist_id"]
+isOneToOne: true
+      referencedRelation: "checklists"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "accountability_events_snapshot_id_fkey"
       columns: ["snapshot_id"]
 isOneToOne: false
@@ -123,14 +129,14 @@ isOneToOne: false
                   ]
                 },"accountability_settings": {
                   Row: {
-                    "auto_draw_after_hours": number,"enabled": boolean,"evaluate_daily": boolean,"evaluate_monthly": boolean,"evaluate_weekly": boolean,"id": boolean,"threshold_low": number,"threshold_moderate": number,"threshold_none": number,"updated_at": string,"updated_by": string | null
+                    "auto_draw_after_hours": number,"enabled": boolean,"evaluate_daily": boolean,"evaluate_monthly": boolean,"evaluate_weekly": boolean,"grace_minutes": number,"id": boolean,"threshold_low": number,"threshold_moderate": number,"threshold_none": number,"updated_at": string,"updated_by": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "auto_draw_after_hours"?: number,"enabled"?: boolean,"evaluate_daily"?: boolean,"evaluate_monthly"?: boolean,"evaluate_weekly"?: boolean,"id"?: boolean,"threshold_low"?: number,"threshold_moderate"?: number,"threshold_none"?: number,"updated_at"?: string,"updated_by"?: string | null
+                    "auto_draw_after_hours"?: number,"enabled"?: boolean,"evaluate_daily"?: boolean,"evaluate_monthly"?: boolean,"evaluate_weekly"?: boolean,"grace_minutes"?: number,"id"?: boolean,"threshold_low"?: number,"threshold_moderate"?: number,"threshold_none"?: number,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Update: {
-                    "auto_draw_after_hours"?: number,"enabled"?: boolean,"evaluate_daily"?: boolean,"evaluate_monthly"?: boolean,"evaluate_weekly"?: boolean,"id"?: boolean,"threshold_low"?: number,"threshold_moderate"?: number,"threshold_none"?: number,"updated_at"?: string,"updated_by"?: string | null
+                    "auto_draw_after_hours"?: number,"enabled"?: boolean,"evaluate_daily"?: boolean,"evaluate_monthly"?: boolean,"evaluate_weekly"?: boolean,"grace_minutes"?: number,"id"?: boolean,"threshold_low"?: number,"threshold_moderate"?: number,"threshold_none"?: number,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -298,6 +304,52 @@ isOneToOne: false
     },{
       foreignKeyName: "books_created_by_fkey"
       columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"checklist_items": {
+                  Row: {
+                    "achieved": number,"checklist_id": string,"created_at": string,"id": string,"owner_id": string,"position": number,"progress": number,"target": number | null,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "achieved"?: number,"checklist_id": string,"created_at"?: string,"id"?: string,"owner_id": string,"position"?: number,"progress"?: number,"target"?: number | null,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "achieved"?: number,"checklist_id"?: string,"created_at"?: string,"id"?: string,"owner_id"?: string,"position"?: number,"progress"?: number,"target"?: number | null,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "checklist_items_checklist_id_fkey"
+      columns: ["checklist_id"]
+isOneToOne: false
+      referencedRelation: "checklists"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "checklist_items_owner_id_fkey"
+      columns: ["owner_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"checklists": {
+                  Row: {
+                    "closed_at": string | null,"closed_reason": string | null,"created_at": string,"deadline": string,"deleted_at": string | null,"id": string,"kind": Database["public"]['Enums']["checklist_kind"],"owner_id": string,"score": number | null,"status": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "closed_at"?: string | null,"closed_reason"?: string | null,"created_at"?: string,"deadline": string,"deleted_at"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["checklist_kind"],"owner_id"?: string,"score"?: number | null,"status"?: string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "closed_at"?: string | null,"closed_reason"?: string | null,"created_at"?: string,"deadline"?: string,"deleted_at"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["checklist_kind"],"owner_id"?: string,"score"?: number | null,"status"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "checklists_owner_id_fkey"
+      columns: ["owner_id"]
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
@@ -997,7 +1049,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "administrator_comparison":
+            "add_checklist_item":
+{ Args: { "p_checklist": string,"p_target"?: number,"p_title": string }; Returns: string
+                           },
+"administrator_comparison":
 { Args: { "p_from": string,"p_to": string,"p_type": Database["public"]['Enums']["period_type"] }; Returns: {
               "administrator_id": string,"administrator_name": string,"avg_score": number,"members": number,"snapshots": number
             }[]
@@ -1017,6 +1072,9 @@ isOneToOne: false
 "create_admin_invitation":
 { Args: { "p_email": string,"p_full_name": string,"p_job_title"?: string }; Returns: string
                            },
+"create_checklist":
+{ Args: { "p_deadline": string,"p_items"?: Json,"p_kind": Database["public"]['Enums']["checklist_kind"],"p_title": string }; Returns: string
+                           },
 "cron_backfill_snapshots":
 { Args: { "p_days"?: number }; Returns: number
                            },
@@ -1034,6 +1092,15 @@ isOneToOne: false
                            },
 "cron_run_reminders":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"cron_sweep_checklists":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"delete_checklist":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
+"delete_checklist_item":
+{ Args: { "p_item": string }; Returns: undefined
                            },
 "get_performance":
 { Args: { "p_date"?: string,"p_type": Database["public"]['Enums']["period_type"],"p_user": string }; Returns: Json
@@ -1126,6 +1193,12 @@ isOneToOne: false
 "spin_accountability":
 { Args: { "p_event": string }; Returns: Json
                            },
+"submit_checklist":
+{ Args: { "p_id": string }; Returns: Json
+                           },
+"sync_my_checklists":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "team_performance":
 { Args: { "p_admin"?: string,"p_date"?: string,"p_type": Database["public"]['Enums']["period_type"] }; Returns: {
               "administrator_id": string,"administrator_name": string,"categories": Json,"full_name": string,"job_title": string,"overall": number,"user_id": string
@@ -1138,7 +1211,13 @@ isOneToOne: false
 { Args: { "p_admin": string,"p_member": string,"p_reason"?: string }; Returns: undefined
                            },
 "update_accountability_settings":
-{ Args: { "p_auto_draw_hours": number,"p_daily": boolean,"p_enabled": boolean,"p_low": number,"p_moderate": number,"p_monthly": boolean,"p_none": number,"p_weekly": boolean }; Returns: undefined
+{ Args: { "p_daily": boolean,"p_enabled": boolean,"p_grace_minutes": number,"p_low": number,"p_moderate": number,"p_monthly": boolean,"p_none": number,"p_weekly": boolean }; Returns: undefined
+                           },
+"update_checklist":
+{ Args: { "p_deadline"?: string,"p_id": string,"p_title": string }; Returns: undefined
+                           },
+"update_checklist_item":
+{ Args: { "p_achieved"?: number,"p_item": string,"p_progress"?: number,"p_target"?: number,"p_title"?: string }; Returns: undefined
                            },
 "update_ledger_status":
 { Args: { "p_ledger": string,"p_note"?: string,"p_status": Database["public"]['Enums']["ledger_status"] }; Returns: undefined
@@ -1148,7 +1227,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "account_status": "pending"|"approved"|"rejected"|"deactivated"|"removed","accountability_level": "none"|"low"|"moderate"|"high","app_role": "super_admin"|"administrator"|"team_member","consequence_category": "frog_jumps"|"leg_raising"|"office_signatures"|"financial_fine","ledger_status": "assigned"|"in_progress"|"completed","perf_category": "daily_todo"|"weekly_goals"|"prospecting"|"monthly_goals"|"additional_tasks","period_type": "daily"|"weekly"|"monthly","prospecting_activity": "find_prospects"|"contact_prospects"|"generate_leads"|"send_proposals"|"follow_ups"|"appointments"|"conversions","task_kind": "daily"|"additional","task_priority": "low"|"normal"|"high"|"urgent","task_status": "pending"|"in_progress"|"completed"
+            "account_status": "pending"|"approved"|"rejected"|"deactivated"|"removed","accountability_level": "none"|"low"|"moderate"|"high","app_role": "super_admin"|"administrator"|"team_member","checklist_kind": "todo"|"weekly"|"monthly"|"prospecting","consequence_category": "frog_jumps"|"leg_raising"|"office_signatures"|"financial_fine","ledger_status": "assigned"|"in_progress"|"completed","perf_category": "daily_todo"|"weekly_goals"|"prospecting"|"monthly_goals"|"additional_tasks","period_type": "daily"|"weekly"|"monthly","prospecting_activity": "find_prospects"|"contact_prospects"|"generate_leads"|"send_proposals"|"follow_ups"|"appointments"|"conversions","task_kind": "daily"|"additional","task_priority": "low"|"normal"|"high"|"urgent","task_status": "pending"|"in_progress"|"completed"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1268,7 +1347,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "account_status": ["pending", "approved", "rejected", "deactivated", "removed"],"accountability_level": ["none", "low", "moderate", "high"],"app_role": ["super_admin", "administrator", "team_member"],"consequence_category": ["frog_jumps", "leg_raising", "office_signatures", "financial_fine"],"ledger_status": ["assigned", "in_progress", "completed"],"perf_category": ["daily_todo", "weekly_goals", "prospecting", "monthly_goals", "additional_tasks"],"period_type": ["daily", "weekly", "monthly"],"prospecting_activity": ["find_prospects", "contact_prospects", "generate_leads", "send_proposals", "follow_ups", "appointments", "conversions"],"task_kind": ["daily", "additional"],"task_priority": ["low", "normal", "high", "urgent"],"task_status": ["pending", "in_progress", "completed"]
+            "account_status": ["pending", "approved", "rejected", "deactivated", "removed"],"accountability_level": ["none", "low", "moderate", "high"],"app_role": ["super_admin", "administrator", "team_member"],"checklist_kind": ["todo", "weekly", "monthly", "prospecting"],"consequence_category": ["frog_jumps", "leg_raising", "office_signatures", "financial_fine"],"ledger_status": ["assigned", "in_progress", "completed"],"perf_category": ["daily_todo", "weekly_goals", "prospecting", "monthly_goals", "additional_tasks"],"period_type": ["daily", "weekly", "monthly"],"prospecting_activity": ["find_prospects", "contact_prospects", "generate_leads", "send_proposals", "follow_ups", "appointments", "conversions"],"task_kind": ["daily", "additional"],"task_priority": ["low", "normal", "high", "urgent"],"task_status": ["pending", "in_progress", "completed"]
           }
         }
 } as const

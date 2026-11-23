@@ -4,7 +4,7 @@ import type { Profile } from "@/lib/auth";
 import { CATEGORY_LABEL, CONSEQUENCE_LABEL, ROLE_LABEL, STATUS_LABEL } from "@/lib/labels";
 import { normalisePerformance, type PeriodType } from "@/server/queries";
 import { addDays, fmtDate, monthEnd, monthStart, weekStart } from "@/lib/format";
-import { PROSPECTING_LABEL } from "@/lib/labels";
+import { KIND, type ChecklistKind } from "@/lib/checklists";
 
 export type Report = { title: string; subtitle: string; columns: string[]; rows: (string | number | null)[][] };
 const CATS = Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[];
@@ -60,27 +60,53 @@ export async function buildReport(me: Profile, type: string, period: PeriodType,
 
   if (type === "accountability") {
     const data = await fetchAll((a, b) => supabase.from("accountability_ledger")
-      .select("assigned_at,category,quantity,unit,currency,status,completed_at,accommodation_active,selected_by,member:profiles!accountability_ledger_user_id_fkey(full_name),event:accountability_events(period_type,period_start,performance_pct,level,triggering_category)")
+      .select("assigned_at,category,quantity,unit,currency,status,completed_at,accommodation_active,selected_by,member:profiles!accountability_ledger_user_id_fkey(full_name),event:accountability_events(period_type,period_start,performance_pct,level,triggering_category,checklist:checklists(title,kind,deadline))")
       .order("assigned_at", { ascending: false }).order("id").range(a, b));
     return {
       title: "Accountability ledger", subtitle: scope,
-      columns: ["Team member", "Period", "Period start", "Performance %", "Level", "Trigger", "Consequence", "Quantity", "Unit", "Accommodation", "Selected by", "Assigned at", "Status", "Completed at"],
+      columns: ["Team member", "Checklist", "Deadline / period", "Score %", "Level", "List type", "Consequence", "Quantity", "Unit", "Accommodation", "Selected by", "Assigned at", "Status", "Completed at"],
       rows: (data ?? []).map((l) => {
-        const e = l.event as unknown as { period_type: string; period_start: string; performance_pct: number; level: string; triggering_category: keyof typeof CATEGORY_LABEL };
-        return [(l.member as unknown as { full_name: string } | null)?.full_name ?? "", e.period_type, e.period_start, n2(e.performance_pct), e.level, CATEGORY_LABEL[e.triggering_category],
-          CONSEQUENCE_LABEL[l.category], n2(l.quantity), l.unit, l.accommodation_active ? "Yes" : "No", l.selected_by, l.assigned_at, l.status, l.completed_at];
+        const e = l.event as unknown as { period_type: string; period_start: string; performance_pct: number; level: string; triggering_category: keyof typeof CATEGORY_LABEL; checklist: { title: string; deadline: string } | null };
+        return [(l.member as unknown as { full_name: string } | null)?.full_name ?? "", e.checklist?.title ?? `${e.period_type} period`,
+          e.checklist ? fmtDate(e.checklist.deadline, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }) : e.period_start,
+          n2(e.performance_pct), e.level, CATEGORY_LABEL[e.triggering_category],
+          CONSEQUENCE_LABEL[l.category], n2(l.quantity), l.unit, l.accommodation_active ? "Yes" : "No", l.selected_by === "system_auto" ? "System (window passed)" : "Member", l.assigned_at, l.status, l.completed_at];
       }),
     };
   }
 
-  if (type === "tasks") {
-    const from = new Date(date + "T00:00:00Z"); from.setUTCDate(from.getUTCDate() - 30);
-    const data = await fetchAll((a, b) => supabase.from("tasks").select("title,kind,priority,status,due_date,completed_at,owner:profiles!tasks_owner_id_fkey(full_name)")
-      .is("deleted_at", null).gte("due_date", from.toISOString().slice(0, 10)).lte("due_date", date).order("due_date", { ascending: false }).order("id").range(a, b), 50_000);
+  if (type === "checklists" || type === "checklist_items") {
+    const r = periodRange(period, date);
+    const from = `${r.from}T00:00:00+01:00`, to = `${r.to}T23:59:59.999+01:00`; // organisation time (Africa/Lagos)
+    type Row = { id: string; title: string; kind: ChecklistKind; deadline: string; status: string; closed_reason: string | null; score: number | null;
+      owner: { full_name: string } | null; items: { title: string; progress: number; target: number | null; achieved: number; position: number }[];
+      event: { level: string; ledger: { category: string; quantity: number; selected_by: string }[] } | { level: string; ledger: { category: string; quantity: number; selected_by: string }[] }[] | null };
+    const data = await fetchAll((a, b) => supabase.from("checklists")
+      .select("id,title,kind,deadline,status,closed_reason,score,owner:profiles!checklists_owner_id_fkey(full_name),items:checklist_items(title,progress,target,achieved,position),event:accountability_events(level,ledger:accountability_ledger(category,quantity,selected_by))")
+      .gte("deadline", from).lte("deadline", to).order("deadline").order("id").range(a, b), 50_000) as unknown as Row[];
+    const when = (v: string) => fmtDate(v, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+    const kindName = (k: ChecklistKind) => KIND[k].page.replace(/^My /, "");
+    if (type === "checklist_items") {
+      return {
+        title: "Checklist items", subtitle: `${scope} · deadlines in ${r.label}`,
+        columns: ["Team member", "Type", "Checklist", "Deadline", "Item", "Progress %", "Done", "Target"],
+        rows: data.flatMap((c) => [...(c.items ?? [])].sort((x, y) => x.position - y.position).map((i) => [
+          c.owner?.full_name ?? "", kindName(c.kind), c.title, when(c.deadline), i.title, n2(i.progress),
+          c.kind === "prospecting" ? i.achieved : null, c.kind === "prospecting" ? i.target : null])),
+      };
+    }
     return {
-      title: "Tasks (last 30 days)", subtitle: scope,
-      columns: ["Owner", "Task", "List", "Priority", "Status", "Due date", "Completed at"],
-      rows: (data ?? []).map((t) => [(t.owner as unknown as { full_name: string } | null)?.full_name ?? "", t.title, t.kind, t.priority, t.status, t.due_date, t.completed_at]),
+      title: "Checklists", subtitle: `${scope} · deadlines in ${r.label}`,
+      columns: ["Team member", "Type", "Checklist", "Deadline", "Status", "Items", "Score %", "Outcome"],
+      rows: data.map((c) => {
+        const ev = Array.isArray(c.event) ? c.event[0] ?? null : c.event;
+        const led = ev?.ledger?.[0];
+        const outcome = c.status === "open" ? "Open" : c.score === null ? "Not graded (no items)" : !ev ? "No consequence"
+          : led ? `${CONSEQUENCE_LABEL[led.category as keyof typeof CONSEQUENCE_LABEL] ?? led.category}: ${n2(led.quantity)} (${led.selected_by === "system_auto" ? "spun by system" : "spun by member"})` : "Spin pending";
+        return [c.owner?.full_name ?? "", kindName(c.kind), c.title, when(c.deadline),
+          c.status === "open" ? "Open" : c.closed_reason === "submitted" ? "Submitted early" : "Graded at deadline",
+          (c.items ?? []).length, c.status === "open" ? null : n2(c.score), outcome];
+      }),
     };
   }
 
@@ -92,69 +118,6 @@ export async function buildReport(me: Profile, type: string, period: PeriodType,
       rows: (data ?? []).map((p) => [p.full_name, p.email, ROLE_LABEL[p.role], STATUS_LABEL[p.status], p.job_title, p.team_name, p.created_at.slice(0, 10)]),
     };
   }
-  if (type === "prospecting") {
-    const r = periodRange(period, date);
-    const ws = weekStart(r.from);
-    const [targets, acts] = await Promise.all([
-      fetchAll((a, b) => supabase.from("prospecting_targets").select("owner_id,activity,period,period_start,target,owner:profiles!prospecting_targets_owner_id_fkey(full_name)")
-        .gte("period_start", period === "daily" ? r.from : ws).lte("period_start", r.to).order("id").range(a, b), 50_000),
-      fetchAll((a, b) => supabase.from("prospecting_activities").select("owner_id,activity,quantity,owner:profiles!prospecting_activities_owner_id_fkey(full_name)")
-        .gte("occurred_on", r.from).lte("occurred_on", r.to).order("id").range(a, b), 50_000),
-    ]);
-    // Same rule as the performance engine: a weekly target replaces that week's daily targets.
-    type Row = { name: string; target: number; actual: number };
-    const rows = new Map<string, Row>();
-    const key = (o: string, act: string) => `${o}|${act}`;
-    const weekly = new Set(targets.filter((t) => t.period === "weekly").map((t) => `${t.owner_id}|${t.activity}|${t.period_start}`));
-    for (const t of targets) {
-      // daily: that day's daily targets. weekly/monthly: weekly targets starting in range,
-      // plus daily targets in range whose week has no weekly target.
-      const inRange = t.period === "weekly"
-        ? period !== "daily" && t.period_start >= r.from && t.period_start <= r.to
-        : t.period_start >= r.from && t.period_start <= r.to && (period === "daily" || !weekly.has(`${t.owner_id}|${t.activity}|${weekStart(t.period_start)}`));
-      if (!inRange) continue;
-      const k = key(t.owner_id, t.activity);
-      const row = rows.get(k) ?? { name: (t.owner as unknown as { full_name: string } | null)?.full_name ?? "", target: 0, actual: 0 };
-      row.target += t.target; rows.set(k, row);
-    }
-    for (const x of acts) {
-      const k = key(x.owner_id, x.activity);
-      const row = rows.get(k) ?? { name: (x.owner as unknown as { full_name: string } | null)?.full_name ?? "", target: 0, actual: 0 };
-      row.actual += x.quantity; rows.set(k, row);
-    }
-    const list = [...rows.entries()].map(([k, v]) => ({ activity: k.split("|")[1] as keyof typeof PROSPECTING_LABEL, ...v }))
-      .sort((x, y) => x.name.localeCompare(y.name) || x.activity.localeCompare(y.activity));
-    return {
-      title: "Prospecting achievement", subtitle: `${scope} · ${r.label}`,
-      columns: ["Team member", "Activity", "Target", "Actual", "Achievement %", "Scored % (capped)"],
-      rows: list.map((v) => [v.name, PROSPECTING_LABEL[v.activity] ?? v.activity, v.target || null, v.actual,
-        v.target ? n2((v.actual / v.target) * 100) : null, v.target ? n2(Math.min(v.actual / v.target, 1) * 100) : null]),
-    };
-  }
-
-  if (type === "goals") {
-    const r = periodRange(period === "daily" ? "weekly" : period, date);
-    const [weekly, monthly] = await Promise.all([
-      fetchAll((a, b) => supabase.from("weekly_goals").select("title,unit,target,achieved,week_start,deadline,owner:profiles!weekly_goals_owner_id_fkey(full_name)")
-        .is("deleted_at", null).gte("week_start", r.from).lte("week_start", r.to).order("week_start").order("id").range(a, b), 50_000),
-      period === "monthly"
-        ? fetchAll((a, b) => supabase.from("monthly_goals").select("title,unit,target,achieved,month_start,deadline,owner:profiles!monthly_goals_owner_id_fkey(full_name)")
-          .is("deleted_at", null).eq("month_start", r.from).order("id").range(a, b), 50_000)
-        : Promise.resolve([]),
-    ]);
-    const row = (kind: string, start: string, g: { title: string; unit: string; target: number; achieved: number; deadline: string; owner: unknown }) => {
-      const pct = Number(g.target) ? (Number(g.achieved) / Number(g.target)) * 100 : null;
-      return [(g.owner as { full_name: string } | null)?.full_name ?? "", kind, start, g.title, n2(g.target), n2(g.achieved), g.unit, g.deadline,
-        n2(pct), pct === null ? null : n2(Math.min(pct, 100)), pct !== null && pct >= 100 ? "Achieved" : "Not achieved"];
-    };
-    return {
-      title: "Goal history", subtitle: `${scope} · ${r.label}`,
-      columns: ["Team member", "Goal type", "Period start", "Goal", "Target", "Achieved", "Unit", "Deadline", "Achievement %", "Scored % (capped)", "Result"],
-      rows: [...weekly.map((g) => row("Weekly", g.week_start, g)), ...monthly.map((g) => row("Monthly", g.month_start, g))]
-        .sort((x, y) => String(x[0]).localeCompare(String(y[0])) || String(x[2]).localeCompare(String(y[2]))),
-    };
-  }
-
   if (type === "development") {
     const [reading, recs] = await Promise.all([
       fetchAll((a, b) => supabase.from("reading_progress").select("user_id,status,progress_pct,started_at,completed_at,updated_at,book:books(title,author,improvement_area),reader:profiles!reading_progress_user_id_fkey(full_name)")

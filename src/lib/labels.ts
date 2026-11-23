@@ -11,8 +11,8 @@ export const STATUS_LABEL: Record<E["account_status"], string> = {
 };
 
 export const CATEGORY_LABEL: Record<E["perf_category"], string> = {
-  daily_todo: "Daily To-Do List", weekly_goals: "Weekly Goals", prospecting: "Prospecting Targets",
-  monthly_goals: "Monthly Goals", additional_tasks: "Additional Tasks",
+  daily_todo: "To-do checklists", weekly_goals: "Weekly goals", prospecting: "Prospecting",
+  monthly_goals: "Monthly goals", additional_tasks: "Additional tasks",
 };
 
 export const CATEGORY_COLOR: Record<E["perf_category"], string> = {

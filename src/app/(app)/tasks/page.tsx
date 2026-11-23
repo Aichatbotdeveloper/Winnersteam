@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { TasksPage } from "@/components/pages/TasksPage";
+import { ChecklistsPage } from "@/components/pages/ChecklistsPage";
 
-export const metadata: Metadata = { title: "My Tasks" };
+export const metadata: Metadata = { title: "My To-Do Checklists" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
-  const { filter } = await searchParams;
-  return <TasksPage kind="daily" filter={filter} basePath="/tasks" />;
+export default function Page() {
+  return <ChecklistsPage kind="todo" />;
 }

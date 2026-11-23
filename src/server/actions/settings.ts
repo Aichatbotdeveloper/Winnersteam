@@ -57,19 +57,6 @@ export async function saveLexSettings(_: ActionResult, fd: FormData): Promise<Ac
   } catch (e) { return fail(e); }
 }
 
-export async function saveWeights(_: ActionResult, fd: FormData): Promise<ActionResult> {
-  try {
-    const supabase = await su();
-    const n = (k: string) => z.coerce.number().min(0).max(100).parse(fd.get(k));
-    const w = { p_daily: n("w_daily"), p_weekly: n("w_weekly"), p_prospecting: n("w_prospecting"), p_monthly: n("w_monthly"), p_additional: n("w_additional") };
-    const total = Object.values(w).reduce((a, b) => a + b, 0);
-    if (Math.abs(total - 100) > 1e-9) return { ok: false, message: `Weights must total exactly 100% (currently ${total}%).` };
-    const { error } = await supabase.rpc("update_performance_weights", w);
-    if (error) return fail(error);
-    return done("/settings", "Performance weights updated. New calculations use them immediately; recorded snapshots keep the weights they were calculated with.");
-  } catch (e) { return fail(e); }
-}
-
 export async function saveAccountabilitySettings(_: ActionResult, fd: FormData): Promise<ActionResult> {
   try {
     const supabase = await su();
@@ -79,7 +66,7 @@ export async function saveAccountabilitySettings(_: ActionResult, fd: FormData):
     const { error } = await supabase.rpc("update_accountability_settings", {
       p_enabled: fd.get("enabled") === "on", p_none: none, p_low: low, p_moderate: moderate,
       p_daily: fd.get("daily") === "on", p_weekly: fd.get("weekly") === "on", p_monthly: fd.get("monthly") === "on",
-      p_auto_draw_hours: z.coerce.number().int().min(1).max(168).parse(fd.get("auto_hours")),
+      p_grace_minutes: z.coerce.number().int().min(5).max(240).parse(fd.get("grace_minutes")),
     });
     if (error) return fail(error);
     return done("/settings/accountability", "Accountability settings saved.");
@@ -138,17 +125,6 @@ export async function sendReminderNow(_: ActionResult, fd: FormData): Promise<Ac
     if (error) return fail(error);
     const n = Object.values((data ?? {}) as Record<string, number>).reduce((a, b) => a + b, 0);
     return done("/settings/reminders", `Reminder generated for ${n} member(s) (duplicates for today are skipped).`);
-  } catch (e) { return fail(e); }
-}
-
-export async function runEvaluationsNow(_prev: ActionResult): Promise<ActionResult> {
-  try {
-    deliverSoon();
-    const supabase = await su();
-    const { data, error } = await supabase.rpc("run_evaluations_now");
-    if (error) return fail(error);
-    const d = data as { events_created: number; auto_draws: number };
-    return done("/settings/accountability", `Evaluation complete: ${d.events_created} new accountability event(s), ${d.auto_draws} automatic draw(s).`);
   } catch (e) { return fail(e); }
 }
 

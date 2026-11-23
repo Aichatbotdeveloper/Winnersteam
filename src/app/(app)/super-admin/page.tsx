@@ -31,7 +31,7 @@ export default async function SuperAdminDashboard() {
   const scores = rows.map((r) => r.overall).filter((v): v is number => v !== null).map(Number);
   const orgAvg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
   // Category averages across the organisation
-  const catAvg = Object.keys(CATEGORY_LABEL).map((k) => {
+  const catAvg = Object.keys(CATEGORY_LABEL).filter((k) => k !== "additional_tasks").map((k) => {
     const v = rows.map((r) => normalisePerformance({ overall: r.overall, categories: r.categories }).categories.find((c) => c.category === k)).filter((c) => c?.applicable).map((c) => c!.capped_pct ?? 0);
     return { k: k as keyof typeof CATEGORY_LABEL, v: v.length ? v.reduce((a, b) => a + b, 0) / v.length : null };
   });
@@ -68,7 +68,7 @@ export default async function SuperAdminDashboard() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Total accounts" value={all.length} sub={`${active.filter((p) => p.role === "administrator").length} admins · ${active.filter((p) => p.role === "team_member").length} active members`} icon="group" href="/super-admin/users" />
         <StatTile label="Pending queue" value={all.filter((p) => p.status === "pending").length} sub="Awaiting review" icon="hourglass_top" tone="amber" href="/super-admin/registrations" />
-        <StatTile label="Org achievement" value={pct(orgAvg)} sub="This week, weighted" icon="monitoring" tone="green" href="/super-admin/analytics" />
+        <StatTile label="Org achievement" value={pct(orgAvg)} sub="This week, average of checklists" icon="monitoring" tone="green" href="/super-admin/analytics" />
         <StatTile label="Administrators" value={adminList.length} icon="admin_panel_settings" tone="blue" href="/super-admin/administrators" />
         <StatTile label="Open accountability" value={ledgerOpen.count ?? 0} icon="cyclone" tone="red" href="/accountability" />
         <StatTile label="Deactivated / removed" value={all.filter((p) => p.status === "deactivated" || p.status === "removed").length} icon="person_off" tone="neutral" />
@@ -113,14 +113,14 @@ export default async function SuperAdminDashboard() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="p-5">
-          <CardHeader icon="functions" title="Weighted Performance Formula" eyebrow="Organisation average, this week" action={<span className="font-heading text-[28px] font-bold text-on-tertiary-container">{pct(orgAvg)}</span>} />
+          <CardHeader icon="functions" title="Checklist scores" eyebrow="Organisation average, this week" action={<span className="font-heading text-[28px] font-bold text-on-tertiary-container">{pct(orgAvg)}</span>} />
           <div className="mt-4 space-y-3">
             {catAvg.map(({ k, v }) => (
               <div key={k}><div className="flex justify-between text-body-md"><span className="text-ink">{CATEGORY_LABEL[k]}</span><span className="font-semibold">{pct(v)}</span></div>
                 <Progress value={v ?? 0} color={CATEGORY_COLOR[k]} className="mt-1.5 h-2" /></div>
             ))}
           </div>
-          <Link href="/settings" className="mt-4 inline-block text-body-sm font-semibold text-secondary">Adjust weights →</Link>
+          <Link href="/settings" className="mt-4 inline-block text-body-sm font-semibold text-secondary">How scoring works →</Link>
         </Card>
         <Card className="p-5">
           <CardHeader icon="donut_small" title="Performance Tier Distribution" eyebrow={`${scores.length} members with data`} />

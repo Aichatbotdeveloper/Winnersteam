@@ -38,9 +38,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
   let body: React.ReactNode = null;
 
   if (section === "general") {
-    const [settings, perf] = await Promise.all([supabase.from("system_settings").select("*"), supabase.from("performance_settings").select("*").single()]);
+    const settings = await supabase.from("system_settings").select("*");
     const s = Object.fromEntries((settings.data ?? []).map((x) => [x.key, x.value]));
-    const p = perf.data!;
     const env_ = serverEnv();
     const integrations = [
       ["AI provider (LEX & summaries)", Boolean(env_.aiApiKey), "AI_PROVIDER / AI_API_KEY / AI_MODEL"],
@@ -51,14 +50,13 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
     body = (
       <div className="grid gap-5 xl:grid-cols-2">
         <Card className="p-5">
-          <CardHeader icon="functions" title="Performance weights" eyebrow={`Last updated ${fmtDateTime(p.updated_at)}`} />
-          <ActionForm action={A.saveWeights} className="mt-4 space-y-3">
-            {([["w_daily", "Daily To-Do List", p.w_daily], ["w_weekly", "Weekly Goals", p.w_weekly], ["w_prospecting", "Prospecting Targets", p.w_prospecting], ["w_monthly", "Monthly Goals", p.w_monthly], ["w_additional", "Additional Tasks", p.w_additional]] as const).map(([k, l, v]) => (
-              <label key={k} className="flex items-center justify-between gap-3"><span className="text-body-md text-ink">{l}</span><span className="flex items-center gap-1"><input name={k} type="number" min={0} max={100} step="0.5" defaultValue={Number(v)} className="input w-24 text-right" />%</span></label>
-            ))}
-            <p className="text-body-sm text-muted-text">Must total exactly 100%. Inapplicable categories are excluded and the rest normalised automatically.</p>
-            <div className="flex justify-end"><SubmitButton icon="save">Save weights</SubmitButton></div>
-          </ActionForm>
+          <CardHeader icon="checklist" title="How scoring works" />
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-body-md text-body-text">
+            <li>Members create checklists (to-do, weekly goals, monthly goals, prospecting), each with its own title and deadline.</li>
+            <li>Items are marked 0, 25, 50, 75 or 100%. Prospecting items are worked out from a count and a target.</li>
+            <li>A checklist&apos;s score is the plain average of its items. Every checklist is judged on its own — there are no weights.</li>
+            <li>At the deadline (or on Submit now) the checklist locks. Below the pass mark, a spin opens; see Accountability for the pass marks and the spin window.</li>
+          </ul>
         </Card>
         <Card className="p-5">
           <CardHeader icon="settings" title="General settings" />
@@ -118,7 +116,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
       <div className="space-y-5">
         <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
           <Card className="p-5">
-            <CardHeader icon="stairs" title="Thresholds & cadence" />
+            <CardHeader icon="stairs" title="Pass marks & spin window" />
             <ActionForm action={A.saveAccountabilitySettings} className="mt-4 space-y-3">
               <Check name="enabled" label="Accountability engine enabled" checked={s.enabled} />
               <div className="grid gap-3 sm:grid-cols-3">
@@ -127,12 +125,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
                 <Field label="Moderate from (%)"><input name="moderate" type="number" step="0.5" defaultValue={Number(s.threshold_moderate)} className="input" /></Field>
               </div>
               <p className="text-body-sm text-muted-text">Below “moderate” is High. Ranges always cover 0–100% with no gaps or overlaps.</p>
-              <div className="flex flex-wrap gap-4"><Check name="daily" label="Evaluate daily" checked={s.evaluate_daily} /><Check name="weekly" label="Evaluate weekly" checked={s.evaluate_weekly} /><Check name="monthly" label="Evaluate monthly" checked={s.evaluate_monthly} /></div>
-              <Field label="Automatic draw if not spun within (hours)"><input name="auto_hours" type="number" min={1} max={168} defaultValue={s.auto_draw_after_hours} className="input w-32" /></Field>
+              <div className="flex flex-wrap gap-4"><Check name="daily" label="To-do & prospecting checklists" checked={s.evaluate_daily} /><Check name="weekly" label="Weekly goals checklists" checked={s.evaluate_weekly} /><Check name="monthly" label="Monthly goals checklists" checked={s.evaluate_monthly} /></div>
+              <Field label="Spin window after a deadline (minutes)" hint="If the member has not spun by then, the system spins for them."><input name="grace_minutes" type="number" min={5} max={240} defaultValue={s.grace_minutes} className="input w-32" /></Field>
               <p className="flex gap-1.5 rounded-lg bg-surface-alt px-3 py-2 text-body-sm text-muted-text"><Icon name="info" className="text-[16px]" />Selected consequences are assigned immediately — there is no approval or sign-off step.</p>
               <div className="flex justify-end"><SubmitButton icon="save">Save</SubmitButton></div>
             </ActionForm>
-            <ActionForm action={A.runEvaluationsNow} className="mt-4 border-t border-border-subtle pt-4"><SubmitButton variant="outline" icon="play_arrow">Run evaluations now</SubmitButton></ActionForm>
           </Card>
           <Card className="p-5">
             <CardHeader icon="pie_chart" title="Last 30 days" eyebrow="Outcomes by category" />
@@ -354,23 +351,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
   }
 
   if (section === "categories") {
-    const [tc, sc] = await Promise.all([supabase.from("task_categories").select("*").order("kind").order("name"), supabase.from("service_categories").select("*").order("name")]);
+    const sc = await supabase.from("service_categories").select("*").order("name");
     body = (
       <div className="grid gap-5 xl:grid-cols-2">
-        <Card className="p-5">
-          <CardHeader icon="label" title="Task categories" action={<ModalButton label="Add" title="Add task category" icon="add" size="sm">
-            <ActionForm action={A.saveCategory} resetOnSuccess className="space-y-3"><input type="hidden" name="type" value="task" />
-              <Field label="Name"><input name="name" required className="input" /></Field>
-              <div className="grid grid-cols-2 gap-3"><Field label="List"><select name="kind" className="input"><option value="daily">Daily to-do</option><option value="additional">Additional task</option></select></Field><Field label="Colour"><input name="color" type="color" defaultValue="#5a45cb" className="h-10 w-full rounded-lg" /></Field></div>
-              <Check name="active" label="Active" checked /><div className="flex justify-end"><SubmitButton>Save</SubmitButton></div></ActionForm></ModalButton>} />
-          <ul className="mt-3 divide-y divide-border-subtle">{(tc.data ?? []).map((c) => (
-            <li key={c.id} className="flex items-center justify-between py-2"><span className="flex items-center gap-2"><span className="h-3 w-3 rounded" style={{ background: c.color }} />{c.name}<Badge>{c.kind}</Badge>{!c.active && <Badge tone="neutral">inactive</Badge>}</span>
-              <ModalButton label="Edit" title="Edit category" icon="edit" variant="ghost" size="sm"><ActionForm action={A.saveCategory} className="space-y-3"><input type="hidden" name="type" value="task" /><input type="hidden" name="id" value={c.id} />
-                <Field label="Name"><input name="name" defaultValue={c.name} required className="input" /></Field>
-                <div className="grid grid-cols-2 gap-3"><Field label="List"><select name="kind" defaultValue={c.kind} className="input"><option value="daily">Daily to-do</option><option value="additional">Additional task</option></select></Field><Field label="Colour"><input name="color" type="color" defaultValue={c.color} className="h-10 w-full rounded-lg" /></Field></div>
-                <Check name="active" label="Active" checked={c.active} /><div className="flex justify-end"><SubmitButton>Save</SubmitButton></div></ActionForm></ModalButton></li>
-          ))}</ul>
-        </Card>
         <Card className="p-5">
           <CardHeader icon="design_services" title="Service categories" action={<ModalButton label="Add" title="Add service category" icon="add" size="sm">
             <ActionForm action={A.saveCategory} resetOnSuccess className="space-y-3"><input type="hidden" name="type" value="service" />

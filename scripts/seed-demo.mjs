@@ -67,12 +67,8 @@ for (let i = 1; i <= ADMINS; i++) {
 console.log(`  ${adminIds.length} administrators`);
 
 const categories = await must(db.from("service_categories").select("id,slug"), "categories");
-const taskCats = await must(db.from("task_categories").select("id,kind"), "task categories");
-const dailyCats = taskCats.filter((c) => c.kind === "daily").map((c) => c.id);
-const addCats = taskCats.filter((c) => c.kind === "additional").map((c) => c.id);
 const TITLES = ["Client follow-up calls", "Prepare proposal draft", "Update CRM records", "Team stand-up notes", "Review portfolio links",
   "Send weekly report", "Research new prospects", "Reconcile expenses", "Draft social media posts", "Process client onboarding"];
-const ACTIVITIES = ["find_prospects", "contact_prospects", "generate_leads", "send_proposals", "follow_ups", "appointments", "conversions"];
 
 // Members
 const memberIds = [];
@@ -107,48 +103,54 @@ if (assignRows.length) {
 }
 console.log(`  ${approveIds.length} approved members, ${pendingIds.length} pending registrations`);
 
-// History: only for members without tasks yet (idempotent re-runs).
-const haveTasks = new Set((await inChunks(approveIds, (ids) => must(db.from("tasks").select("owner_id").in("owner_id", ids).limit(100000), "existing"))).map((t) => t.owner_id));
-const fresh = approveIds.filter((id) => !haveTasks.has(id));
-const tasks = [], targets = [], acts = [], wgoals = [], mgoals = [], services = [];
-for (const [n, id] of fresh.entries()) {
-  const skill = 0.45 + Math.random() * 0.55; // each member has a consistent performance level
+// Profile services: only for members without any yet (idempotent re-runs).
+const haveServices = new Set((await inChunks(approveIds, (ids) => must(db.from("profile_services").select("profile_id").in("profile_id", ids).limit(100000), "existing services"))).map((t) => t.profile_id));
+const services = [];
+for (const id of approveIds.filter((x) => !haveServices.has(x))) {
+  services.push({ profile_id: id, name: pick(["Website Development", "Digital Marketing", "Academic Publishing", "Financial Consulting"]), category_id: pick(categories).id,
+    description: "Demo service entry", key_benefits: ["Fast delivery", "Quality assurance"], position: 0 });
+}
+const chunk = async (table, rows) => { for (let i = 0; i < rows.length; i += 1000) await must(db.from(table).insert(rows.slice(i, i + 1000)), table); };
+await chunk("profile_services", services);
+
+// Checklists (current model): only for members without checklists yet.
+const haveLists = new Set((await inChunks(approveIds, (ids) => must(db.from("checklists").select("owner_id").in("owner_id", ids).limit(100000), "existing lists"))).map((c) => c.owner_id));
+const lists = [], items = [];
+const STEP = [0, 25, 50, 75, 100];
+const stepFor = (skill) => STEP[Math.max(0, Math.min(4, Math.round(skill * 4 + (Math.random() - 0.5) * 2)))];
+const at = (date, hh) => `${date}T${String(hh - 1).padStart(2, "0")}:00:00Z`; // local (UTC+1) hour → UTC
+function addList(owner, kind, title, deadline, rows, closed) {
+  const id = crypto.randomUUID();
+  const progress = rows.map((r) => r.progress);
+  const score = progress.length ? Math.round((progress.reduce((a, b) => a + b, 0) / progress.length) * 100) / 100 : null;
+  lists.push({ id, owner_id: owner, kind, title, deadline, created_at: new Date(new Date(deadline).getTime() - 9 * 3600e3).toISOString(),
+    ...(closed ? { status: "closed", closed_at: deadline, closed_reason: "deadline", score } : { status: "open", closed_at: null, closed_reason: null, score: null }) });
+  rows.forEach((r, i) => items.push({ checklist_id: id, owner_id: owner, title: r.title, progress: r.progress, target: r.target ?? null, achieved: r.achieved ?? 0, position: i + 1 }));
+}
+for (const id of approveIds.filter((x) => !haveLists.has(x))) {
+  const skill = 0.45 + Math.random() * 0.55;
   for (let d = 14; d >= 0; d--) {
     const date = addDays(today, -d);
     const dow = new Date(date + "T00:00:00Z").getUTCDay();
     if (dow === 0 || dow === 6) continue;
-    const count = rnd(4, 8);
-    for (let t = 0; t < count; t++) {
-      const done = d > 0 ? Math.random() < skill : Math.random() < skill * 0.5;
-      tasks.push({ owner_id: id, kind: "daily", title: pick(TITLES), category_id: pick(dailyCats), priority: pick(["normal", "normal", "high", "urgent", "low"]),
-        due_date: date, due_time: `${String(rnd(9, 17)).padStart(2, "0")}:${pick(["00", "30"])}`, status: done ? "completed" : "pending" });
-    }
-    if (Math.random() < 0.4) tasks.push({ owner_id: id, kind: "additional", title: pick(["Office support rota", "Training session", "Event preparation"]), category_id: pick(addCats), priority: "normal", due_date: date, due_time: null, status: Math.random() < skill ? "completed" : "pending" });
-    for (const a of ["contact_prospects", "generate_leads", "send_proposals"]) {
-      const target = a === "contact_prospects" ? 20 : a === "generate_leads" ? 5 : 2;
-      targets.push({ owner_id: id, activity: a, period: "daily", period_start: date, target });
-      const q = Math.round(target * (skill + (Math.random() - 0.4) * 0.4) * (d === 0 ? 0.5 : 1));
-      if (q > 0) acts.push({ owner_id: id, activity: a, quantity: Math.min(q, 1000), occurred_on: date });
-    }
+    const closed = d > 0;
+    const todo = Array.from({ length: rnd(3, 6) }, () => ({ title: pick(TITLES), progress: closed ? stepFor(skill) : pick([0, 0, 25, 50, 100]) }));
+    addList(id, "todo", pick(["Office", "Daily", "Morning", "Client work"]), at(date, closed ? 17 : 23), todo, closed);
+    if (Math.random() < 0.35) addList(id, "todo", pick(["Home", "Evening", "Admin"]), at(date, 21), [{ title: "Plan tomorrow", progress: closed ? stepFor(skill + 0.2) : 0 }, { title: "Reading", progress: closed ? stepFor(skill) : 0 }], closed);
+    const prospect = [["Contact prospects", 20], ["Generate leads", 5], ["Send proposals", 2]].map(([t, target]) => {
+      const achieved = Math.max(0, Math.round(target * (skill + (Math.random() - 0.4) * 0.4) * (closed ? 1 : 0.4)));
+      return { title: t, target, achieved, progress: Math.round(Math.min(achieved / target, 1) * 10000) / 100 };
+    });
+    addList(id, "prospecting", "Prospecting", at(date, closed ? 17 : 23), prospect, closed);
   }
-  for (const ws of [weekStart(addDays(today, -7)), weekStart(today)]) {
-    wgoals.push({ owner_id: id, title: "Proposals submitted", unit: "proposals", target: 5, achieved: Math.round(5 * skill * (ws === weekStart(today) ? 0.6 : 1)), week_start: ws, deadline: addDays(ws, 4) });
-    wgoals.push({ owner_id: id, title: "Client meetings", unit: "meetings", target: 3, achieved: Math.min(3, Math.round(3 * skill + Math.random())), week_start: ws, deadline: addDays(ws, 4) });
-  }
-  const ms = today.slice(0, 8) + "01";
-  mgoals.push({ owner_id: id, title: "Portfolio value secured", unit: "NGN", target: 2000000, achieved: Math.round(2000000 * skill * 0.7), month_start: ms, deadline: addDays(addDays(ms, 32).slice(0, 8) + "01", -1) });
-  services.push({ profile_id: id, name: pick(["Website Development", "Digital Marketing", "Academic Publishing", "Financial Consulting"]), category_id: pick(categories).id,
-    description: "Demo service entry", key_benefits: ["Fast delivery", "Quality assurance"], position: 0 });
-  if (n % 50 === 0) process.stdout.write(".");
+  const fri = addDays(weekStart(today), 4);
+  addList(id, "weekly", "This week", at(fri < today ? addDays(fri, 7) : fri, 18), [{ title: "Send 5 proposals", progress: pick([25, 50, 75]) }, { title: "Hold 3 client meetings", progress: pick([0, 25, 50]) }], false);
+  const monthEnd = addDays(addDays(today.slice(0, 8) + "01", 32).slice(0, 8) + "01", -1);
+  addList(id, "monthly", pick(["November targets", "Monthly goals"]), at(monthEnd, 18), [{ title: "Secure ₦2m portfolio value", progress: pick([25, 50]) }, { title: "Close 3 new contracts", progress: pick([0, 25, 50]) }], false);
 }
-const chunk = async (table, rows) => { for (let i = 0; i < rows.length; i += 1000) await must(db.from(table).insert(rows.slice(i, i + 1000)), table); };
-await chunk("tasks", tasks);
-await chunk("prospecting_targets", targets);
-await chunk("prospecting_activities", acts);
-await chunk("weekly_goals", wgoals);
-await chunk("monthly_goals", mgoals);
-await chunk("profile_services", services);
-console.log(`\n  ${tasks.length} tasks, ${acts.length} prospecting logs, ${wgoals.length + mgoals.length} goals`);
+await chunk("checklists", lists);
+await chunk("checklist_items", items);
+console.log(`  ${lists.length} checklists, ${items.length} checklist items`);
 
 const snaps = await must(db.rpc("cron_backfill_snapshots", { p_days: 14 }), "backfill");
 const evals = await must(db.rpc("cron_run_evaluations"), "evaluations");

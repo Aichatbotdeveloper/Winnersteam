@@ -21,12 +21,13 @@ export default async function AdminDashboard() {
     supabase.rpc("latest_quote"),
     supabase.from("profile_change_log").select("id,section,changes,created_at,profile:profiles!profile_change_log_profile_id_fkey(id,full_name)").neq("profile_id", me.id).order("created_at", { ascending: false }).limit(6),
     supabase.from("accountability_ledger").select("id,category,quantity,status,assigned_at,member:profiles!accountability_ledger_user_id_fkey(full_name)").order("assigned_at", { ascending: false }).limit(6),
-    supabase.from("tasks").select("status,owner_id").eq("due_date", today).is("deleted_at", null).neq("owner_id", me.id),
+    supabase.from("checklists").select("status,owner_id,deadline").eq("status", "open").neq("owner_id", me.id)
+      .gte("deadline", `${today}T00:00:00+01:00`).lte("deadline", `${today}T23:59:59+01:00`),
   ]);
   const w = (weekly.data ?? []) as TeamRow[];
   const d = (daily.data ?? []) as TeamRow[];
   const avg = (rows: TeamRow[]) => { const s = rows.map((r) => r.overall).filter((v): v is number => v !== null).map(Number); return s.length ? s.reduce((a, b) => a + b, 0) / s.length : null; };
-  const outstanding = (tasksToday.data ?? []).filter((t) => t.status !== "completed").length;
+  const outstanding = (tasksToday.data ?? []).length;
   const atRisk = w.filter((r) => r.overall !== null && Number(r.overall) < 75).sort((a, b) => Number(a.overall) - Number(b.overall));
   const q = quote.data?.[0];
 
@@ -48,9 +49,9 @@ export default async function AdminDashboard() {
       </Card>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Team size" value={w.length} icon="groups" href="/team" />
-        <StatTile label="Today's team score" value={pct(avg(d))} sub="Live, weighted" icon="today" tone="blue" />
+        <StatTile label="Today's team average" value={pct(avg(d))} sub="Live, all checklists" icon="today" tone="blue" />
         <StatTile label="This week's team score" value={pct(avg(w))} icon="date_range" tone="green" />
-        <StatTile label="Tasks outstanding today" value={outstanding} sub={`of ${(tasksToday.data ?? []).length} due`} icon="pending_actions" tone="amber" />
+        <StatTile label="Open checklists due today" value={outstanding} sub="Across your team" icon="pending_actions" tone="amber" />
       </div>
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <Card className="overflow-hidden">

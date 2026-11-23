@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import { TasksPage } from "@/components/pages/TasksPage";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Additional Tasks" };
-
-export default async function Page({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
-  const { filter } = await searchParams;
-  return <TasksPage kind="additional" filter={filter} basePath="/additional-tasks" />;
+// Additional tasks are now items in to-do checklists.
+export default function Page() {
+  redirect("/tasks");
 }

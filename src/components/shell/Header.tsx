@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Avatar, Icon } from "@/components/ui";
 import { ModalButton } from "@/components/ui/client";
-import { TaskForm, type TaskCategory } from "@/components/tasks/TaskForm";
+import { NewChecklistForm } from "@/components/checklists/NewChecklistForm";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { signOut } from "@/app/(auth)/actions";
 
-export function Header({ user, unread, categories, today, avatarUrl }: {
+export function Header({ user, unread, defaultDeadline, avatarUrl }: {
   user: { id: string; full_name: string; email: string; roleLabel: string };
-  unread: number; categories: TaskCategory[]; today: string; avatarUrl: string | null;
+  unread: number; defaultDeadline: string; avatarUrl: string | null;
 }) {
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -30,8 +30,8 @@ export function Header({ user, unread, categories, today, avatarUrl }: {
         <input name="q" placeholder="Search tasks, goals, members…" aria-label="Search" className="w-full rounded-lg border border-border-subtle bg-surface-alt py-2 pl-9 pr-3 text-body-sm focus:border-secondary focus:bg-surface focus:outline-none" />
       </form>
       <div className="ml-auto flex items-center gap-1.5">
-        <ModalButton label={<span className="hidden sm:inline">New Task</span>} title="New task" icon="add" size="sm" className="py-2">
-          {(close) => <TaskForm categories={categories} today={today} onDone={close} />}
+        <ModalButton label={<span className="hidden sm:inline">New checklist</span>} title="New to-do checklist" icon="add" size="sm" className="py-2">
+          <NewChecklistForm kind="todo" defaultDeadline={defaultDeadline} />
         </ModalButton>
         <ThemeToggle />
         <NotificationBell userId={user.id} initialUnread={unread} />

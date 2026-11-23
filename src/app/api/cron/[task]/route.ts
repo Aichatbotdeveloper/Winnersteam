@@ -31,7 +31,8 @@ function authorised(req: NextRequest) {
 
 /**
  * Scheduled processing (Vercel Cron, Supabase pg_cron + pg_net, or any scheduler):
- *   /api/cron/evaluations     – snapshot closed periods, trigger + auto-draw accountability (daily, after midnight)
+ *   /api/cron/evaluations     – snapshot closed periods for history and weekly book recommendations (daily).
+ *                               Checklists are graded every minute by pg_cron (private.sweep_checklists).
  *   /api/cron/reminders       – due reminders by schedule (hourly recommended)
  *   /api/cron/dispatch        – deliver pending e-mail / push (every 5–15 min recommended)
  *   /api/cron/service-updates – fetch approved sources, summarise, match (every few hours)

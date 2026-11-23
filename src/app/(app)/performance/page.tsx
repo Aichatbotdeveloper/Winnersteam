@@ -11,7 +11,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const p = (["daily", "weekly", "monthly"].includes(period ?? "") ? period : "daily") as "daily" | "weekly" | "monthly";
   return (
     <>
-      <PageHeader eyebrow="Telemetry engine" title="My Performance" description="Your weighted achievement score, category breakdown and recorded history." />
+      <PageHeader eyebrow="Telemetry engine" title="My Performance" description="Your checklist scores, averages by day, week and month, and recorded history." />
       <PerformanceView userId={me.id} period={p} basePath="/performance" />
     </>
   );

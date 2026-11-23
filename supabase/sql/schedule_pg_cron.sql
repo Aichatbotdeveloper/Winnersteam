@@ -5,10 +5,12 @@
 -- It contains NO secrets and is safe to run again (it replaces its own jobs).
 --
 -- What it schedules (times in UTC; Lagos = UTC+1):
+--   winners-checklists       every minute       → grades checklists at their deadline, opens spins,
+--                                                 auto-spins after the spin window (in-database)
 --   winners-reminders        every hour at :05  → creates due reminders (in-database)
---   winners-dispatch         every 10 minutes   → app sends pending e-mails / push
+--   winners-dispatch         every 2 minutes    → app sends pending e-mails / push
 --   winners-service-updates  every 6 hours      → app fetches approved update sources
--- Daily evaluations keep running from Vercel Cron.
+-- Daily history snapshots keep running from Vercel Cron.
 --
 -- Calls to the app use single-use tokens issued by the database
 -- (public.cron_issue_token), so no shared secret is stored here.
@@ -52,7 +54,13 @@ select cron.unschedule(jobid) from cron.job where jobname like 'winners-%';
 select cron.schedule('winners-reminders', '5 * * * *',
   $job$ select public.cron_run_reminders(); $job$);
 
-select cron.schedule('winners-dispatch', '*/10 * * * *',
+-- Checklists: close at their deadline, grade, open spins and auto-spin after the
+-- spin window. Runs inside the database every minute (no app call needed).
+select cron.schedule('winners-checklists', '* * * * *',
+  $job$ select private.sweep_checklists(null); $job$);
+
+-- E-mail and browser push delivery (every 2 minutes so "Spin the wheel" arrives quickly).
+select cron.schedule('winners-dispatch', '*/2 * * * *',
   $job$ select net.http_get(
           url := 'https://winnersteam.automifyco.com/api/cron/dispatch',
           headers := jsonb_build_object('x-cron-token', public.cron_issue_token()),

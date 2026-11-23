@@ -21,47 +21,53 @@ beforeAll(async () => {
   yesterday = addDays(today, -1);
 });
 
-describe("performance engine", () => {
-  it("daily to-do: 10 tasks, 8 completed = 80%, other categories normalised out", async () => {
+/** A checklist (already graded, or open with items) whose deadline is 5 PM local on `date`. */
+async function checklist(owner: string, date: string, kind: string, opts: { score?: number; progress?: number[]; open?: boolean }) {
+  const deadline = `${date}T16:00:00Z`;
+  const { data, error } = await service.from("checklists").insert({
+    owner_id: owner, kind, title: `${kind} list`, deadline,
+    ...(opts.open ? {} : { status: "closed", closed_at: deadline, closed_reason: "deadline", score: opts.score ?? null }),
+  }).select("id").single();
+  if (error) throw error;
+  if (opts.progress?.length) {
+    const r = await service.from("checklist_items").insert(opts.progress.map((p, i) => ({ checklist_id: data.id, owner_id: owner, title: `i${i}`, progress: p, position: i })));
+    if (r.error) throw r.error;
+  }
+  return data.id as string;
+}
+
+describe("performance (checklists, no weights)", () => {
+  it("every checklist counts equally: the day's average is the plain average of its checklists", async () => {
     const m = await createMember(superA.client, "perf1", admin.id);
-    await pastTasks(m.id, yesterday, 10, 8);
+    await checklist(m.id, yesterday, "todo", { score: 100 });
+    await checklist(m.id, yesterday, "todo", { score: 50 });
+    await checklist(m.id, yesterday, "prospecting", { score: 30 });
     const { data, error } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "daily", p_date: yesterday });
     expect(error).toBeNull();
-    expect(Number(data.overall)).toBe(80);
+    expect(Number(data.overall)).toBe(60); // (100 + 50 + 30) / 3
     const cats = Object.fromEntries((data.categories as { category: string; [k: string]: unknown }[]).map((c) => [c.category, c]));
+    expect(Number(cats.daily_todo.capped_pct)).toBe(75);
+    expect(Number(cats.prospecting.capped_pct)).toBe(30);
     expect(cats.weekly_goals.applicable).toBe(false);
-    expect(Number(cats.daily_todo.effective_weight)).toBe(100);
+    expect(Number(cats.daily_todo.weight)).toBe(0);
   });
 
-  it("weights, capping and overachievement", async () => {
+  it("open checklists count with their live score; empty checklists are ignored", async () => {
     const m = await createMember(superA.client, "perf2", admin.id);
-    await pastTasks(m.id, yesterday, 10, 8);
-    await pastTasks(m.id, yesterday, 2, 1, "additional");
-    await service.from("prospecting_targets").insert({ owner_id: m.id, activity: "contact_prospects", period: "daily", period_start: yesterday, target: 20 });
-    await service.from("prospecting_activities").insert({ owner_id: m.id, activity: "contact_prospects", quantity: 22, occurred_on: yesterday });
-    const { data } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "daily", p_date: yesterday });
-    const cats = Object.fromEntries((data.categories as { category: string; raw_pct: number; capped_pct: number }[]).map((c) => [c.category, c]));
-    expect(Number(cats.prospecting.capped_pct)).toBe(100);
-    expect(Number(cats.prospecting.raw_pct)).toBe(110);
-    // (30*80 + 20*100 + 10*50) / 60
-    expect(Number(data.overall)).toBeCloseTo(81.67, 2);
+    await checklist(m.id, today, "todo", { open: true, progress: [100, 0] });
+    await checklist(m.id, today, "todo", { open: true });
+    const { data } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "daily", p_date: today });
+    expect(Number(data.overall)).toBe(50);
   });
 
-  it("weekly goals average capped achievement per goal and never divide by zero", async () => {
+  it("weekly view averages the checklists due that week", async () => {
     const m = await createMember(superA.client, "perf3", admin.id);
-    const { data: empty } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "weekly" });
-    expect(empty.overall).toBeNull();
-    const { data: wk } = await m.client.rpc("period_bounds", { p_type: "weekly", p_date: today });
-    const ws = (wk as { p_start: string }[])[0]?.p_start ?? (wk as { p_start: string }).p_start;
-    await m.client.from("weekly_goals").insert([
-      { title: "Proposals", target: 4, achieved: 2, week_start: ws, deadline: addDays(ws, 6) },
-      { title: "Calls", target: 10, achieved: 15, week_start: ws, deadline: addDays(ws, 6) },
-    ]);
-    const { data } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "weekly" });
-    const wg = (data.categories as { category: string; capped_pct: number; raw_pct: number }[]).find((c) => c.category === "weekly_goals")!;
-    expect(Number(wg.capped_pct)).toBe(75); // avg(50%, 100% capped)
-    expect(Number(wg.raw_pct)).toBe(100);   // avg(50%, 150%)
+    await checklist(m.id, yesterday, "weekly", { score: 80 });
+    await checklist(m.id, yesterday, "todo", { score: 40 });
+    const { data } = await m.client.rpc("get_performance", { p_user: m.id, p_type: "weekly", p_date: yesterday });
+    expect(Number(data.overall)).toBe(60);
   });
+
 
   it("weights must total 100 and only the Super Admin can change them", async () => {
     const bad = await superA.client.rpc("update_performance_weights", { p_daily: 50, p_weekly: 20, p_prospecting: 20, p_monthly: 20, p_additional: 10 });
@@ -91,44 +97,15 @@ describe("accountability engine", () => {
     expect(new Set(all!.map((o) => o.category))).toEqual(new Set(["frog_jumps", "leg_raising", "office_signatures", "financial_fine"]));
   });
 
-  it("evaluation triggers an event, spin assigns immediately, no reroll", async () => {
-    const m = await createMember(superA.client, "acc1", admin.id);
+  it("closed days are still recorded for history but no longer trigger a spin", async () => {
+    const m = await createMember(superA.client, "acc-hist", admin.id);
     await pastTasks(m.id, yesterday, 4, 0);
-    const run = await service.rpc("cron_run_evaluations");
-    expect(run.error).toBeNull();
-
-    const { data: ev } = await m.client.from("accountability_events").select("*").eq("period_type", "daily").eq("period_start", yesterday).single();
-    expect(ev.level).toBe("high");
-    expect(ev.triggering_category).toBe("daily_todo");
-
-    const wheel = await m.client.rpc("get_wheel", { p_event: ev.id });
-    expect(wheel.data.drawn).toBe(false);
-
-    // the admin cannot spin for the member
-    const adminSpin = await admin.client.rpc("spin_accountability", { p_event: ev.id });
-    expect(adminSpin.error).not.toBeNull();
-
-    const s1 = await m.client.rpc("spin_accountability", { p_event: ev.id });
-    expect(s1.error).toBeNull();
-    expect(s1.data.status).toBe("assigned");
-    const s2 = await m.client.rpc("spin_accountability", { p_event: ev.id });
-    expect(s2.data.ledger_id).toBe(s1.data.ledger_id);
-    expect(s2.data.category).toBe(s1.data.category);
-    expect(s1.data.sectors[s1.data.winning_index].category).toBe(s1.data.category);
-    if (s1.data.category === "financial_fine") expect(s1.data.currency).toBe("NGN");
-
-    // assigned admin is notified and can see the ledger
-    const { data: led } = await admin.client.from("accountability_ledger").select("id,status").eq("id", s1.data.ledger_id);
-    expect(led?.[0]?.status).toBe("assigned");
-
-    // completion tracking
-    const done = await m.client.rpc("update_ledger_status", { p_ledger: s1.data.ledger_id, p_status: "completed", p_note: "done" });
-    expect(done.error).toBeNull();
-
-    // second evaluation run does not duplicate
+    await checklist(m.id, yesterday, "todo", { score: 20 });
     await service.rpc("cron_run_evaluations");
-    const { data: evs } = await service.from("accountability_events").select("id").eq("user_id", m.id).eq("period_type", "daily").eq("period_start", yesterday);
-    expect(evs?.length).toBe(1);
+    const { data } = await service.from("accountability_events").select("id").eq("user_id", m.id);
+    expect(data).toEqual([]);
+    const { data: snap } = await service.from("performance_snapshots").select("overall_score").eq("user_id", m.id).eq("period_type", "daily").eq("period_start", yesterday).single();
+    expect(Number(snap!.overall_score)).toBe(20);
   });
 
   it("physical accommodation excludes frog jumps and leg raising (no approval)", async () => {
@@ -136,9 +113,10 @@ describe("accountability engine", () => {
       const m = await createMember(superA.client, `accom${i}`, admin.id);
       const set = await m.client.rpc("set_physical_accommodation", { p_enabled: true, p_note: "knee injury" });
       expect(set.error).toBeNull();
-      await pastTasks(m.id, yesterday, 4, 0);
-      await service.rpc("cron_run_evaluations");
-      const { data: ev } = await m.client.from("accountability_events").select("id").eq("period_type", "daily").single();
+      const local = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 19);
+      const { data: id } = await m.client.rpc("create_checklist", { p_kind: "todo", p_title: "Office", p_deadline: local, p_items: [{ title: "A" }] });
+      await m.client.rpc("submit_checklist", { p_id: id });
+      const { data: ev } = await m.client.from("accountability_events").select("id").eq("checklist_id", id).single();
       const wheel = await m.client.rpc("get_wheel", { p_event: ev!.id });
       expect(wheel.data.accommodation).toBe(true);
       for (const s of wheel.data.sectors) expect(["office_signatures", "financial_fine"]).toContain(s.category);
@@ -148,34 +126,16 @@ describe("accountability engine", () => {
     }
   });
 
-  it("high performers get no consequence", async () => {
-    const m = await createMember(superA.client, "acc-good", admin.id);
-    await pastTasks(m.id, yesterday, 10, 10);
-    await service.rpc("cron_run_evaluations");
-    const { data } = await service.from("accountability_events").select("id").eq("user_id", m.id);
-    expect(data).toEqual([]);
-    const { data: snap } = await service.from("performance_snapshots").select("overall_score").eq("user_id", m.id).eq("period_type", "daily").eq("period_start", yesterday).single();
-    expect(Number(snap!.overall_score)).toBe(100);
-  });
-
   it("threshold ranges must be ordered with no gaps", async () => {
     const bad = await superA.client.rpc("update_accountability_settings", {
-      p_enabled: true, p_none: 70, p_low: 75, p_moderate: 50, p_daily: true, p_weekly: true, p_monthly: true, p_auto_draw_hours: 24 });
+      p_enabled: true, p_none: 70, p_low: 75, p_moderate: 50, p_daily: true, p_weekly: true, p_monthly: true, p_grace_minutes: 15 });
     expect(bad.error).not.toBeNull();
-  });
-
-  it("auto-draws spins that were not taken within the window", async () => {
-    const m = await createMember(superA.client, "acc-auto", admin.id);
-    await pastTasks(m.id, yesterday, 3, 0);
-    await service.rpc("cron_run_evaluations");
-    const { data: ev } = await service.from("accountability_events").select("id").eq("user_id", m.id).eq("period_type", "daily").single();
-    // simulate the window elapsing: the event table has no update trigger, so the service role may backdate it
-    await service.from("accountability_events").update({ created_at: new Date(Date.now() - 48 * 3600e3).toISOString() }).eq("id", ev!.id);
-    await service.rpc("cron_run_evaluations");
-    const { data: led } = await service.from("accountability_ledger").select("selected_by,status").eq("event_id", ev!.id).single();
-    expect(led).toEqual({ selected_by: "system_auto", status: "assigned" });
+    const ok = await superA.client.rpc("update_accountability_settings", {
+      p_enabled: true, p_none: 90, p_low: 75, p_moderate: 50, p_daily: true, p_weekly: true, p_monthly: true, p_grace_minutes: 15 });
+    expect(ok.error).toBeNull();
   });
 });
+
 
 describe("notifications & reminders", () => {
   it("reminders are deduplicated per day", async () => {
@@ -188,17 +148,18 @@ describe("notifications & reminders", () => {
 
   it("routine reminder e-mails are off; monthly-goal reminders and deadlines are still e-mailed", async () => {
     const m = await createMember(superA.client, "mailquota", admin.id);
-    const w = await service.from("weekly_goals").insert({ owner_id: m.id, title: "W", unit: "u", target: 5, week_start: addDays(today, -((new Date(today).getUTCDay() + 6) % 7)), deadline: today });
-    const mo = await service.from("monthly_goals").insert({ owner_id: m.id, title: "M", unit: "u", target: 5, month_start: today.slice(0, 8) + "01", deadline: today });
-    expect([w.error?.message, mo.error?.message]).toEqual([undefined, undefined]);
+    const { data: c, error } = await service.from("checklists").insert({ owner_id: m.id, kind: "monthly", title: "Month",
+      deadline: new Date(Date.now() + 24 * 3_600_000).toISOString() }).select("id").single();
+    expect(error).toBeNull();
+    await service.from("checklist_items").insert({ checklist_id: c!.id, owner_id: m.id, title: "Goal", progress: 25 });
     for (const k of ["daily_plan", "monthly_goals", "goal_deadlines"]) await superA.client.rpc("send_reminder_now", { p_kind: k });
     const { data } = await service.from("notifications").select("type,email_status").eq("user_id", m.id);
     const status = Object.fromEntries((data ?? []).map((n) => [n.type, n.email_status]));
     expect(status["reminder.daily_plan"]).toBe("skipped");
-    expect(status["reminder.goal_deadlines"]).toBe("skipped");
     expect(status["reminder.monthly_goals"]).toBe("pending");
     expect(status["reminder.monthly_goal_deadlines"]).toBe("pending");
   });
+
 
   it("profile changes notify the assigned admin and Super Admin", async () => {
     const m = await createMember(superA.client, "profchg", admin.id);

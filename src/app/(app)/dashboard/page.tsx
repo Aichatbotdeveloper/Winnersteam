@@ -7,11 +7,13 @@ import { getPerformance } from "@/server/queries";
 import { Avatar, Badge, ButtonLink, Card, CardHeader, EmptyState, Icon, Progress, cn } from "@/components/ui";
 import { ModalButton } from "@/components/ui/client";
 import { CategoryGrid, CompositeCard } from "@/components/performance/Breakdown";
-import { TaskList, type TaskItem } from "@/components/tasks/TaskList";
-import { TaskForm } from "@/components/tasks/TaskForm";
+import { ChecklistCard } from "@/components/checklists/ChecklistCard";
+import { NewChecklistForm } from "@/components/checklists/NewChecklistForm";
+import { checklistLabel, defaultDeadline, fmtDeadline, type ChecklistKind } from "@/lib/checklists";
+import { loadChecklists, syncMyChecklists } from "@/server/checklists";
 import { LexIcon } from "@/components/brand/Logo";
-import { CONSEQUENCE_ICON, PROSPECTING_LABEL, consequenceText } from "@/lib/labels";
-import { fmtDate, greeting, monthStart, nowTimeInOrg, num, pct, todayInOrg, weekStart } from "@/lib/format";
+import { CONSEQUENCE_ICON, consequenceText } from "@/lib/labels";
+import { fmtDate, greeting, pct, todayInOrg } from "@/lib/format";
 import { avatarUrl } from "@/server/storage";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -22,38 +24,29 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const period = (["daily", "weekly", "monthly"].includes(sp.period ?? "") ? sp.period : "weekly") as "daily" | "weekly" | "monthly";
   const today = todayInOrg();
-  const ws = weekStart(today);
-  const ms = monthStart(today);
   const supabase = await createClient();
+  await syncMyChecklists();
 
-  const [perf, admin, tasks, cats, wGoals, mGoals, targets, acts, quote, services, reading, update, openEvent, recentLedger, streakSnaps] = await Promise.all([
+  const [perf, admin, lists, quote, services, reading, update, openEvent, recentLedger, streakSnaps] = await Promise.all([
     getPerformance(me.id, period),
     supabase.rpc("my_administrator"),
-    supabase.from("tasks").select("*, category:task_categories(name,color)").eq("owner_id", me.id).eq("due_date", today).is("deleted_at", null).order("status").order("due_time", { nullsFirst: false }),
-    supabase.from("task_categories").select("id,name,kind").eq("active", true).order("name"),
-    supabase.from("weekly_goals").select("target,achieved").eq("owner_id", me.id).eq("week_start", ws).is("deleted_at", null),
-    supabase.from("monthly_goals").select("target,achieved,unit").eq("owner_id", me.id).eq("month_start", ms).is("deleted_at", null),
-    supabase.from("prospecting_targets").select("activity,target").eq("owner_id", me.id).eq("period", "daily").eq("period_start", today),
-    supabase.from("prospecting_activities").select("activity,quantity").eq("owner_id", me.id).eq("occurred_on", today),
+    loadChecklists({ ownerId: me.id, openOnly: true }),
     supabase.rpc("latest_quote"),
     supabase.from("profile_services").select("name").eq("profile_id", me.id).order("position"),
     supabase.from("reading_progress").select("progress_pct,status,book:books(title,author)").eq("user_id", me.id).eq("status", "reading").order("updated_at", { ascending: false }).limit(1),
     supabase.from("user_service_updates").select("reason,update:service_updates(title,url,published_at,ai_summary,excerpt)").eq("user_id", me.id).order("delivered_at", { ascending: false }).limit(1),
-    supabase.from("accountability_events").select("id,period_type,performance_pct,level,accountability_ledger(id)").eq("user_id", me.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("accountability_events").select("id,period_type,performance_pct,level,auto_draw_at,checklist:checklists(title,kind),accountability_ledger(id)").eq("user_id", me.id).order("created_at", { ascending: false }).limit(10),
     supabase.from("accountability_ledger").select("category,quantity,status").eq("user_id", me.id).neq("status", "completed").order("assigned_at", { ascending: false }).limit(1),
     supabase.from("performance_snapshots").select("period_start,overall_score").eq("user_id", me.id).eq("period_type", "daily").eq("is_current", true).order("period_start", { ascending: false }).limit(60),
   ]);
 
-  const taskItems = (tasks.data ?? []) as unknown as TaskItem[];
-  const done = taskItems.filter((t) => t.status === "completed").length;
-  const tgt = new Map((targets.data ?? []).map((t) => [t.activity, t.target]));
-  const actual = new Map<string, number>();
-  for (const a of acts.data ?? []) actual.set(a.activity, (actual.get(a.activity) ?? 0) + a.quantity);
-  const tgtTotal = [...tgt.values()].reduce((s, n) => s + n, 0);
-  const actTotal = [...actual.values()].reduce((s, n) => s + n, 0);
-  const avg = (rows: { target: number; achieved: number }[]) => rows.length ? rows.reduce((s, g) => s + Math.min(g.achieved / g.target, 1), 0) / rows.length * 100 : null;
-  const wAvg = avg(wGoals.data ?? []); const mAvg = avg(mGoals.data ?? []);
-  const pendingSpin = (openEvent.data ?? []).find((e) => !e.accountability_ledger);
+  const open = lists.open;
+  const dueToday = open.filter((c) => todayInOrg(new Date(c.deadline)) === today).length;
+  type Ev = { id: string; period_type: string; performance_pct: number; auto_draw_at: string | null; checklist: { title: string; kind: ChecklistKind } | null; accountability_ledger: unknown };
+  const pendingSpins = ((openEvent.data ?? []) as unknown as Ev[]).filter((e) => !e.accountability_ledger || (Array.isArray(e.accountability_ledger) && !e.accountability_ledger.length))
+    .sort((a, b) => (a.checklist ? 0 : 1) - (b.checklist ? 0 : 1) || String(a.auto_draw_at ?? "").localeCompare(String(b.auto_draw_at ?? "")));
+  const pendingSpin = pendingSpins[0];
+  const spinText = (e: Ev) => e.checklist ? `Your ${checklistLabel(e.checklist.title, e.checklist.kind)} scored ${Number(e.performance_pct)}%. Spin the wheel` : `Your ${e.period_type} score was ${pct(e.performance_pct)}. Spin the wheel`;
   let streak = 0;
   for (const s of streakSnaps.data ?? []) { if (s.overall_score !== null && Number(s.overall_score) >= 90) streak++; else if (s.overall_score !== null) break; }
   const q = quote.data?.[0];
@@ -85,8 +78,8 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
               <div className="flex items-center gap-1.5 font-heading text-heading-md text-ink"><Icon name="local_fire_department" className="text-accent-amber" />{streak}-day streak</div>
             </div>
             <div className="rounded-xl bg-surface-container-low px-4 py-2.5">
-              <div className="eyebrow !text-secondary">Today&apos;s tasks</div>
-              <div className="font-heading text-heading-md text-ink">{done}/{taskItems.length} <span className="text-body-sm font-normal text-muted-text">completed</span></div>
+              <div className="eyebrow !text-secondary">Open checklists</div>
+              <div className="font-heading text-heading-md text-ink">{open.length} <span className="text-body-sm font-normal text-muted-text">· {dueToday} due today</span></div>
             </div>
           </div>
         </div>
@@ -103,11 +96,28 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
         )}
       </Card>
 
+      {pendingSpins.length > 0 && (
+        <section className="space-y-2" aria-label="Spins waiting">
+          {pendingSpins.map((e) => (
+            <div key={e.id} className="flex flex-col gap-3 rounded-xl border border-accent-amber/40 bg-accent-amber/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <Icon name="casino" className="mt-0.5 text-[24px] text-accent-amber" />
+                <div>
+                  <div className="font-heading text-body-lg text-ink">{spinText(e)}</div>
+                  {e.auto_draw_at && <div className="text-body-sm text-muted-text">Spin by {fmtDeadline(e.auto_draw_at)}, or the system will spin for you.</div>}
+                </div>
+              </div>
+              <ButtonLink href={`/accountability?event=${e.id}`} variant="secondary" icon="cyclone">Spin the wheel</ButtonLink>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* Performance */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <Card className="p-5"><CompositeCard perf={perf} periodLabel={period} /></Card>
         <Card className="p-5">
-          <CardHeader eyebrow="Weighted breakdown" title="Active Weight Distribution" action={
+          <CardHeader eyebrow="By list type" title="Average per list type" action={
             <div className="flex rounded-lg bg-surface-alt p-0.5 text-body-sm">
               {(["daily", "weekly", "monthly"] as const).map((p) => (
                 <Link key={p} href={`/dashboard?period=${p}`} className={cn("rounded-md px-2.5 py-1 capitalize", p === period ? "bg-surface font-semibold text-ink shadow-card" : "text-muted-text")}>{p}</Link>
@@ -117,55 +127,26 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
         </Card>
       </div>
 
-      {/* Daily tasks */}
-      <Card className="p-5">
-        <CardHeader icon="checklist" title={<span className="flex flex-wrap items-center gap-2">Daily Execution Sprint <Badge tone="purple">{done} Done · {taskItems.length - done} Pending</Badge></span>}
-          action={<ModalButton label="Add New Task" title="New task" icon="add" size="sm"><TaskForm categories={(cats.data ?? []) as never} today={today} /></ModalButton>} />
-        <p className="ml-12 mt-0.5 text-body-sm text-muted-text">Completion feeds your {perf.weights.daily_todo}% daily to-do weight.</p>
-        <div className="mt-4">
-          <TaskList tasks={taskItems} today={today} categories={(cats.data ?? []) as never} nowTime={nowTimeInOrg()}
-            empty={<EmptyState icon="add_task" title="No tasks planned for today">Add your daily to-do list to start tracking your progress.</EmptyState>} />
+      {/* Open checklists */}
+      <section aria-labelledby="open-lists">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="open-lists" className="font-heading text-heading-lg text-ink">Open checklists</h2>
+          <ModalButton label="New checklist" title="New to-do checklist" icon="add" size="sm"><NewChecklistForm kind="todo" defaultDeadline={defaultDeadline("todo")} /></ModalButton>
         </div>
-        <div className="mt-3 text-right"><Link href="/tasks" className="text-body-sm font-semibold text-secondary hover:underline">Open full task manager →</Link></div>
-      </Card>
-
-      {/* Prospecting + goals */}
-      <div className="grid gap-5 lg:grid-cols-[2fr_1fr_1fr]">
-        <Card className="p-5">
-          <CardHeader eyebrow="Outreach & acquisition" title="Prospecting Tracker" action={<Badge tone="green">Daily target: {tgtTotal}</Badge>} />
-          {tgt.size === 0 ? (
-            <div className="mt-4"><EmptyState icon="contact_page" title="No targets set for today" action={<ButtonLink href="/prospecting" size="sm" icon="flag">Set targets</ButtonLink>} /></div>
-          ) : (
-            <>
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {[...tgt.entries()].map(([a, t]) => (
-                  <div key={a} className="rounded-lg bg-surface-alt px-3 py-2 text-center">
-                    <div className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-text">{PROSPECTING_LABEL[a]}</div>
-                    <div className="font-heading text-[22px] font-bold text-ink">{actual.get(a) ?? 0}<span className="text-body-sm font-normal text-faint-text">/{t}</span></div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex items-center justify-between rounded-lg bg-surface-alt px-3 py-2 text-body-sm">
-                <span className="flex items-center gap-1.5 text-muted-text"><span className="h-2 w-2 rounded-full bg-accent-blue" />{tgtTotal ? Math.round((actTotal / tgtTotal) * 100) : 0}% of daily activity goal</span>
-                <Link href="/prospecting" className="font-semibold text-secondary">Log activity →</Link>
-              </div>
-            </>
-          )}
-        </Card>
-        {[["Weekly Goals", wAvg, wGoals.data?.length ?? 0, "/weekly-goals", "var(--color-accent-blue)", "Week of " + fmtDate(ws, { day: "numeric", month: "short" })],
-          ["Monthly Goals", mAvg, mGoals.data?.length ?? 0, "/monthly-goals", "var(--color-accent-purple)", fmtDate(ms, { month: "long", year: "numeric" })]].map(([t, v, n, href, color, sub]) => (
-          <Card key={t as string} className="flex flex-col p-5">
-            <div className="eyebrow">{sub as string}</div>
-            <div className="mt-1 flex items-baseline justify-between">
-              <h2 className="font-heading text-heading-md text-ink">{t as string}</h2>
-              <span className="font-heading text-heading-md" style={{ color: color as string }}>{pct(v as number | null)}</span>
-            </div>
-            <p className="mt-1 text-body-sm text-muted-text">{n as number} active goal{n === 1 ? "" : "s"}</p>
-            <Progress value={(v as number | null) ?? 0} color={color as string} className="mt-auto" />
-            <Link href={href as string} className="mt-3 text-body-sm font-semibold text-secondary">Update progress →</Link>
-          </Card>
-        ))}
-      </div>
+        {open.length === 0 ? (
+          <Card><EmptyState icon="playlist_add" title="No open checklists">Create a to-do checklist with a title and a deadline to start tracking your day.</EmptyState></Card>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {open.slice(0, 6).map((c) => <ChecklistCard key={c.id} checklist={c} editable spinFor />)}
+          </div>
+        )}
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-body-sm font-semibold text-secondary">
+          <Link href="/tasks" className="hover:underline">To-do checklists →</Link>
+          <Link href="/weekly-goals" className="hover:underline">Weekly goals →</Link>
+          <Link href="/monthly-goals" className="hover:underline">Monthly goals →</Link>
+          <Link href="/prospecting" className="hover:underline">Prospecting →</Link>
+        </div>
+      </section>
 
       {/* Profile summary */}
       <Card className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
@@ -209,11 +190,11 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
         <Card className="flex flex-col p-5">
           <CardHeader eyebrow="Accountability protocol" title={pendingSpin ? "Spin required" : led ? "Outcome active" : "All clear"} />
           <div className="mt-4 flex-1 text-body-md text-muted-text">
-            {pendingSpin ? <>Your {pendingSpin.period_type} score was <strong className="text-ink">{pct(pendingSpin.performance_pct)}</strong>. Spin the wheel to reveal your assigned outcome.</>
+            {pendingSpin ? <strong className="text-ink">{spinText(pendingSpin)}</strong>
               : led ? <span className="flex items-center gap-2"><Icon name={CONSEQUENCE_ICON[led.category]} className="text-secondary" />{consequenceText(led.category, led.quantity)} · <Badge tone="amber">{led.status.replace("_", " ")}</Badge></span>
-              : <>No open accountability items. Keep your score at 90% or above to stay clear.</>}
+              : <>No open accountability items. Each checklist that scores 90% or more is clear.</>}
           </div>
-          <ButtonLink href="/accountability" variant={pendingSpin ? "secondary" : "outline"} size="sm" icon="cyclone" className="mt-4 self-start">{pendingSpin ? "Spin the wheel" : "View accountability"}</ButtonLink>
+          <ButtonLink href={pendingSpin ? `/accountability?event=${pendingSpin.id}` : "/accountability"} variant={pendingSpin ? "secondary" : "outline"} size="sm" icon="cyclone" className="mt-4 self-start">{pendingSpin ? "Spin the wheel" : "View accountability"}</ButtonLink>
         </Card>
       </div>
 
@@ -224,13 +205,13 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
             <LexIcon size={40} />
             <div>
               <div className="flex items-center gap-2 font-heading text-heading-md text-white">LEX Personal Copilot <span className="rounded bg-accent px-1.5 text-[10px] font-bold text-obsidian">READY</span></div>
-              <p className="text-body-sm text-faint-text">Ask how anything works — tasks, goals, scoring, accountability or your profile.</p>
+              <p className="text-body-sm text-faint-text">Ask how anything works — checklists, scoring, accountability or your profile.</p>
             </div>
           </div>
           <ButtonLink href="/lex" variant="secondary" icon="forum">Ask LEX</ButtonLink>
         </div>
       </section>
-      <p className="text-center text-body-sm text-faint-text">Scores update live as you work. Closed days are evaluated after midnight ({num(perf.weights.daily_todo)}/{num(perf.weights.weekly_goals)}/{num(perf.weights.prospecting)}/{num(perf.weights.monthly_goals)}/{num(perf.weights.additional_tasks)} weighting).</p>
+      <p className="text-center text-body-sm text-faint-text">Scores update live as you work. Each checklist is graded on its own at its deadline, or when you press Submit now.</p>
     </div>
   );
 }

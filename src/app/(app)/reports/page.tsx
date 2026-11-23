@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Reports" };
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ type?: string; period?: string; date?: string; admin?: string }> }) {
   const me = await requireUser();
   const sp = await searchParams;
-  const common = [["tasks", "Tasks"], ["prospecting", "Prospecting achievement"], ["goals", "Goal history"], ["development", "Personal development"], ["accountability", "Accountability"]];
+  const common = [["checklists", "Checklists"], ["checklist_items", "Checklist items"], ["development", "Personal development"], ["accountability", "Accountability"]];
   const types = me.role === "team_member" ? [["performance", "Performance history"], ...common]
     : [["performance", "Team performance"], ...common, ["users", "User directory"]];
   const type = types.some(([k]) => k === sp.type) ? sp.type! : "performance";

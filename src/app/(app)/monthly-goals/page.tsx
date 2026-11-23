@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { GoalsPage } from "@/components/pages/GoalsPage";
+import { ChecklistsPage } from "@/components/pages/ChecklistsPage";
 
 export const metadata: Metadata = { title: "Monthly Goals" };
 
 export default function Page() {
-  return <GoalsPage kind="monthly" />;
+  return <ChecklistsPage kind="monthly" />;
 }
