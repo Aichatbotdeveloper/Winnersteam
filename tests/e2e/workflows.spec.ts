@@ -98,7 +98,7 @@ test("staff pages render without errors", async ({ page }) => {
 test("public website: signed-out visitors see the landing page", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Where ambition becomes achievement.");
-  await expect(page.getByRole("heading", { name: "Gabriel Samuel" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mr Gabriel Samuel" })).toBeVisible();
   await page.getByRole("link", { name: "Join the team" }).first().click();
   await expect(page).toHaveURL(/\/register$/);
   for (const p of ["/privacy", "/terms"]) expect((await page.request.get(p)).status()).toBe(200);

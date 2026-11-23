@@ -182,7 +182,7 @@ export function Landing() {
             <div className="relative w-full">
               <Image
                 src={ceoPortrait}
-                alt="Gabriel Samuel, Founder and CEO of Winners Team"
+                alt="Mr Gabriel Samuel, Founder and CEO of Winners Team"
                 quality={Q}
                 sizes="(min-width: 1024px) 460px, 100vw"
                 placeholder="blur"
@@ -190,7 +190,7 @@ export function Landing() {
               />
               <Image
                 src={ceoSpeaking}
-                alt="Gabriel Samuel speaking at a Winners Team event"
+                alt="Mr Gabriel Samuel speaking at a Winners Team event"
                 quality={Q}
                 sizes="200px"
                 placeholder="blur"
@@ -199,17 +199,17 @@ export function Landing() {
             </div>
             <div className="mt-4 lg:mt-0">
               <Eyebrow tone="emerald">Meet our CEO — An Emerald Director</Eyebrow>
-              <h2 className="font-heading text-4xl font-bold tracking-tight text-white md:text-5xl">Gabriel Samuel</h2>
+              <h2 className="font-heading text-4xl font-bold tracking-tight text-white md:text-5xl">Mr Gabriel Samuel</h2>
               <p className="mt-2 text-lg font-medium text-accent">Founder &amp; CEO</p>
               <div className="mt-6 h-px w-16 bg-accent" aria-hidden />
               <div className="mt-6 space-y-4 text-base leading-relaxed text-white/80 md:text-lg">
                 <p>
-                  Gabriel Samuel is a student and business owner who believes no one should have to choose between learning and
+                  Mr Gabriel Samuel is a student and business owner who believes no one should have to choose between learning and
                   earning. He founded Winners Team to help people like him (students, young entrepreneurs and the self-employed)
                   build discipline, grow their networks and turn ambition into real results.
                 </p>
                 <p>
-                  Gabriel is passionate about impacting lives and connecting people. He believes the right community can change
+                  Mr Gabriel is passionate about impacting lives and connecting people. He believes the right community can change
                   the direction of a person’s life, and he leads Winners Team with that belief at its heart.
                 </p>
               </div>
