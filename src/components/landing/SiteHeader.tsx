@@ -13,7 +13,7 @@ export const SITE_NAV = [
 ] as const;
 
 /** Public-site header: transparent over the hero, solid once the page scrolls (or always, with `solid`). */
-export function SiteHeader({ solid = false }: { solid?: boolean }) {
+export function SiteHeader({ solid = false, signedIn = false }: { solid?: boolean; signedIn?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -50,12 +50,20 @@ export function SiteHeader({ solid = false }: { solid?: boolean }) {
 
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle tone="onDark" />
-          <Link href="/login" className="rounded-md px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10">
-            Sign in
-          </Link>
-          <Link href="/register" className="rounded-md bg-secondary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-secondary/30 transition-colors hover:bg-secondary-container">
-            Join the team
-          </Link>
+          {signedIn ? (
+            <Link href="/" className="rounded-md bg-secondary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-secondary/30 transition-colors hover:bg-secondary-container">
+              My workspace
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="rounded-md px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10">
+                Sign in
+              </Link>
+              <Link href="/register" className="rounded-md bg-secondary px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-secondary/30 transition-colors hover:bg-secondary-container">
+                Join the team
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
@@ -82,10 +90,14 @@ export function SiteHeader({ solid = false }: { solid?: boolean }) {
               </Link>
             ))}
           </nav>
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <Link href="/login" className="rounded-md border border-white/25 py-3 text-center text-sm font-semibold text-white">Sign in</Link>
-            <Link href="/register" className="rounded-md bg-secondary py-3 text-center text-sm font-semibold text-white">Join the team</Link>
-          </div>
+          {signedIn ? (
+            <Link href="/" className="mt-5 block rounded-md bg-secondary py-3 text-center text-sm font-semibold text-white">My workspace</Link>
+          ) : (
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <Link href="/login" className="rounded-md border border-white/25 py-3 text-center text-sm font-semibold text-white">Sign in</Link>
+              <Link href="/register" className="rounded-md bg-secondary py-3 text-center text-sm font-semibold text-white">Join the team</Link>
+            </div>
+          )}
         </div>
       )}
     </header>

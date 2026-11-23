@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/privacy", "/terms", "/robots.txt", "/sitemap.xml"];
+const PUBLIC_PATHS = ["/", "/privacy", "/terms", "/feedback", "/robots.txt", "/sitemap.xml"];
 const PUBLIC_PREFIXES = ["/login", "/register", "/forgot-password", "/verify-email", "/auth/", "/api/cron/", "/brand/", "/sw.js", "/manifest.webmanifest"];
 
 /**

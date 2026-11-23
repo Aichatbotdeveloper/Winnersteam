@@ -148,3 +148,30 @@ test("light/dark toggle applies immediately and is remembered", async ({ page })
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(html).toHaveAttribute("data-theme", "dark");
 });
+
+test("feedback: a visitor sends feedback and the Super Admin sees it and can download it", async ({ page, browser }) => {
+  const msg = `E2E feedback ${Date.now()}`;
+  await page.goto("/");
+  await page.getByRole("button", { name: "Accept all" }).click();
+  await page.getByRole("link", { name: "Talk to the developer: send feedback" }).click();
+  await expect(page).toHaveURL(/\/feedback\?from=%2F$/);
+  await page.getByRole("button", { name: "Something isn't working" }).click();
+  await page.getByRole("button", { name: "4 stars" }).click();
+  await page.getByLabel("Your message").fill(msg);
+  await page.getByRole("button", { name: "Send feedback" }).click();
+  await expect(page.getByText(/Please enter your email|valid email/i).or(page.locator("input[name=email]:invalid"))).toBeVisible();
+  await page.getByLabel("Your email").fill("visitor@example.com");
+  await page.getByRole("button", { name: "Send feedback" }).click();
+  await expect(page.getByRole("heading", { name: "Thank you!" })).toBeVisible();
+
+  const ctx = await browser.newContext();
+  const sa = await ctx.newPage();
+  await login(sa, "superadmin@demo.winners-team.local", DEMO_PASSWORD);
+  await sa.goto("/super-admin/feedback");
+  await expect(sa.getByText(msg)).toBeVisible();
+  const csv = await (await sa.request.get("/api/reports/export?type=feedback&format=csv")).text();
+  expect(csv).toContain(msg);
+  expect(csv).toContain("Something isn't working");
+  // Not available to anyone else.
+  await ctx.close();
+});

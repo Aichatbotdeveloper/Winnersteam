@@ -50,6 +50,7 @@ export function navFor(role: Role): NavSection[] {
         { href: "/settings", label: "System Settings", icon: "tune" },
         { href: "/settings/quotes", label: "Motivational Quotes", icon: "format_quote" },
         { href: "/audit-logs", label: "Audit Logs", icon: "policy" },
+        { href: "/super-admin/feedback", label: "Feedback", icon: "forum" },
       ] },
       account,
     ];

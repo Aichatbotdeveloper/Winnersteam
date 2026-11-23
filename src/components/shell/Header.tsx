@@ -50,6 +50,7 @@ export function Header({ user, unread, defaultDeadline, avatarUrl }: {
               </div>
               <Link role="menuitem" href="/profile" className="flex items-center gap-2 px-4 py-2 text-body-md hover:bg-surface-alt"><Icon name="badge" className="text-[18px]" />My profile</Link>
               <Link role="menuitem" href="/notifications?tab=preferences" className="flex items-center gap-2 px-4 py-2 text-body-md hover:bg-surface-alt"><Icon name="tune" className="text-[18px]" />Preferences</Link>
+              <Link role="menuitem" href="/feedback" className="flex items-center gap-2 px-4 py-2 text-body-md hover:bg-surface-alt"><Icon name="forum" className="text-[18px]" />Talk to the developer</Link>
               <form action={signOut}><button role="menuitem" className="flex w-full items-center gap-2 px-4 py-2 text-left text-body-md text-accent-red hover:bg-surface-alt"><Icon name="logout" className="text-[18px]" />Sign out</button></form>
             </div>
           )}

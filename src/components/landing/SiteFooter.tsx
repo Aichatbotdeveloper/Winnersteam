@@ -8,6 +8,7 @@ const LINKS = [
   ["Our CEO", "/#ceo"],
   ["Sign in", "/login"],
   ["Join", "/register"],
+  ["Feedback", "/feedback"],
   ["Privacy Policy", "/privacy"],
   ["Terms", "/terms"],
 ] as const;

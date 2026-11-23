@@ -369,6 +369,26 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"feedback": {
+                  Row: {
+                    "created_at": string,"email": string | null,"id": string,"ip_hash": string | null,"message": string,"name": string | null,"page": string | null,"rating": number | null,"status": string,"type": string,"updated_at": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"email"?: string | null,"id"?: string,"ip_hash"?: string | null,"message": string,"name"?: string | null,"page"?: string | null,"rating"?: number | null,"status"?: string,"type": string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"email"?: string | null,"id"?: string,"ip_hash"?: string | null,"message"?: string,"name"?: string | null,"page"?: string | null,"rating"?: number | null,"status"?: string,"type"?: string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "feedback_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"knowledge_base_documents": {
                   Row: {
                     "active": boolean,"audience": (Database["public"]['Enums']["app_role"])[],"content": string,"id": string,"link": string | null,"search": unknown,"slug": string,"title": string,"updated_at": string,"updated_by": string | null

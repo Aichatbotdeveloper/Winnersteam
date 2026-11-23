@@ -118,6 +118,18 @@ export async function buildReport(me: Profile, type: string, period: PeriodType,
       rows: (data ?? []).map((p) => [p.full_name, p.email, ROLE_LABEL[p.role], STATUS_LABEL[p.status], p.job_title, p.team_name, p.created_at.slice(0, 10)]),
     };
   }
+  if (type === "feedback" && me.role === "super_admin") {
+    const data = await fetchAll((a, b) => supabase.from("feedback").select("created_at,type,rating,message,name,email,page,status,user_id")
+      .order("created_at", { ascending: false }).order("id").range(a, b), 50_000);
+    const TYPE: Record<string, string> = { suggestion: "Suggestion", problem: "Something isn't working", compliment: "Compliment", other: "Other" };
+    return {
+      title: "Feedback", subtitle: "All feedback, newest first",
+      columns: ["Received", "Type", "Rating", "Message", "Name", "Email", "Member or visitor", "Sent from page", "Status"],
+      rows: data.map((f) => [fmtDate(f.created_at, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
+        TYPE[f.type] ?? f.type, f.rating, f.message, f.name, f.email, f.user_id ? "Member" : "Visitor", f.page, f.status]),
+    };
+  }
+
   if (type === "development") {
     const [reading, recs] = await Promise.all([
       fetchAll((a, b) => supabase.from("reading_progress").select("user_id,status,progress_pct,started_at,completed_at,updated_at,book:books(title,author,improvement_area),reader:profiles!reading_progress_user_id_fkey(full_name)")

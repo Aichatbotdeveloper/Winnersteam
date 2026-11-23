@@ -9,6 +9,7 @@ import { Header } from "@/components/shell/Header";
 import { WelcomeQuote } from "@/components/shell/WelcomeQuote";
 import { LexLauncher } from "@/components/lex/LexLauncher";
 import { Toaster } from "@/components/ui/client";
+import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import { avatarUrl } from "@/server/storage";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <WelcomeQuote quote={quote.data?.[0] ?? null} firstName={profile.full_name.split(" ")[0] ?? profile.full_name} />
       </Suspense>
       <Toaster />
+      <FeedbackButton inApp />
       <LexLauncher role={profile.role} enabled={settings["lex.enabled"] !== false}
         welcome={typeof settings["lex.welcome_message"] === "string" ? settings["lex.welcome_message"] : "Hi, I'm LEX — your Winners Team platform assistant."} />
     </div>

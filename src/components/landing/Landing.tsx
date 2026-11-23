@@ -4,6 +4,7 @@ import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { CookieBanner } from "./CookieBanner";
 import { HeroSlider } from "./HeroSlider";
+import { FeedbackButton } from "@/components/feedback/FeedbackButton";
 import community from "@/assets/landing/community.webp";
 import celebration from "@/assets/landing/celebration.webp";
 import ceoPortrait from "@/assets/landing/ceo-portrait.webp";
@@ -228,6 +229,7 @@ export function Landing() {
       </main>
 
       <SiteFooter />
+      <FeedbackButton />
       <CookieBanner />
     </div>
   );

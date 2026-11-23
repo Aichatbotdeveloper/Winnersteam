@@ -77,3 +77,14 @@ describe("feed fetch error messages", () => {
     expect(describeFetchError(new Error("HTTP 403"))).toBe("HTTP 403");
   });
 });
+
+import { checklistLabel } from "@/lib/checklists";
+describe("checklist labels", () => {
+  it("never repeats words the title already ends with", () => {
+    expect(checklistLabel("Office", "todo")).toBe("Office to-do list");
+    expect(checklistLabel("Home to-do list", "todo")).toBe("Home to-do list");
+    expect(checklistLabel("Daily to-do", "todo")).toBe("Daily to-do list");
+    expect(checklistLabel("Prospecting", "prospecting")).toBe("Prospecting list");
+    expect(checklistLabel("Sales weekly", "weekly")).toBe("Sales weekly goals");
+  });
+});

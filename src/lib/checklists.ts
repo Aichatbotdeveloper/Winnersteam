@@ -37,8 +37,13 @@ export const KIND: Record<ChecklistKind, { path: string; page: string; noun: str
 
 /** "Office to-do list" — without doubling when the title already ends with the label. */
 export function checklistLabel(title: string, kind: ChecklistKind) {
-  const l = KIND[kind].label;
-  return title.trim().toLowerCase().endsWith(l) ? title.trim() : `${title.trim()} ${l}`;
+  const t = title.trim();
+  const words = KIND[kind].label.split(" ");
+  // Join without repeating words the title already ends with ("Prospecting" → "Prospecting list").
+  for (let n = words.length; n > 0; n--) {
+    if (t.toLowerCase().endsWith(words.slice(0, n).join(" "))) return [t, ...words.slice(n)].join(" ");
+  }
+  return `${t} ${words.join(" ")}`;
 }
 
 export function average(items: { progress: number }[]) {
