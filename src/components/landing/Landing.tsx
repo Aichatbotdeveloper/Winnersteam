@@ -179,14 +179,14 @@ export function Landing() {
           <div className="pointer-events-none absolute -right-40 -top-40 h-[480px] w-[480px] rounded-full bg-accent/10 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-40 -left-40 h-[480px] w-[480px] rounded-full bg-secondary/20 blur-3xl" aria-hidden />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[5fr_6fr] lg:gap-16">
-            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+            <div className="relative w-full">
               <Image
                 src={ceoPortrait}
                 alt="Gabriel Samuel, Founder and CEO of Winners Team"
                 quality={Q}
-                sizes="(min-width: 1024px) 460px, (min-width: 640px) 448px, 100vw"
+                sizes="(min-width: 1024px) 460px, 100vw"
                 placeholder="blur"
-                className="aspect-[4/5] w-full rounded-xl object-cover shadow-2xl ring-1 ring-white/10"
+                className="aspect-[4/5] w-full rounded-xl object-cover object-[50%_20%] shadow-2xl ring-1 ring-white/10 sm:aspect-[4/3] lg:aspect-[4/5]"
               />
               <Image
                 src={ceoSpeaking}
@@ -194,7 +194,7 @@ export function Landing() {
                 quality={Q}
                 sizes="200px"
                 placeholder="blur"
-                className="absolute -bottom-8 -right-3 hidden aspect-[2/3] w-36 rounded-lg object-cover shadow-2xl ring-4 ring-ink sm:block md:-right-8 md:w-44"
+                className="absolute -bottom-8 -right-3 hidden aspect-[2/3] w-36 rounded-lg object-cover shadow-2xl ring-4 ring-ink sm:block lg:-right-8 md:w-44"
               />
             </div>
             <div className="mt-4 lg:mt-0">
