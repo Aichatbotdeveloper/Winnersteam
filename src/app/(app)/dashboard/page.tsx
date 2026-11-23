@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireUser, homeFor } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPerformance } from "@/server/queries";
-import { Avatar, Badge, ButtonLink, Card, CardHeader, EmptyState, Icon, Progress, cn } from "@/components/ui";
+import { Avatar, Badge, ButtonLink, Card, CardHeader, EmptyState, Icon, cn } from "@/components/ui";
 import { ModalButton } from "@/components/ui/client";
 import { CategoryGrid, CompositeCard } from "@/components/performance/Breakdown";
 import { ChecklistCard } from "@/components/checklists/ChecklistCard";
@@ -15,6 +15,7 @@ import { LexIcon } from "@/components/brand/Logo";
 import { CONSEQUENCE_ICON, consequenceText } from "@/lib/labels";
 import { fmtDate, greeting, pct, todayInOrg } from "@/lib/format";
 import { avatarUrl } from "@/server/storage";
+import { DashboardBooks, type ShelfBook, type ShelfRec } from "@/components/books/DashboardBooks";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -27,13 +28,15 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
   const supabase = await createClient();
   await syncMyChecklists();
 
-  const [perf, admin, lists, quote, services, reading, update, openEvent, recentLedger, streakSnaps] = await Promise.all([
+  const [perf, admin, lists, quote, services, reading, recsQ, freeBooks, update, openEvent, recentLedger, streakSnaps] = await Promise.all([
     getPerformance(me.id, period),
     supabase.rpc("my_administrator"),
     loadChecklists({ ownerId: me.id, openOnly: true }),
     supabase.rpc("latest_quote"),
     supabase.from("profile_services").select("name").eq("profile_id", me.id).order("position"),
-    supabase.from("reading_progress").select("progress_pct,status,book:books(title,author)").eq("user_id", me.id).eq("status", "reading").order("updated_at", { ascending: false }).limit(1),
+    supabase.from("reading_progress").select("book_id,progress_pct,status,book:books(id,title,author,cover_url,reading_url,free_download_url,license,improvement_area)").eq("user_id", me.id).order("updated_at", { ascending: false }),
+    supabase.from("book_recommendations").select("id,weakness,reason,book:books(id,title,author,cover_url,reading_url,free_download_url,license,improvement_area)").eq("user_id", me.id).is("dismissed_at", null).order("created_at", { ascending: false }).limit(10),
+    supabase.from("books").select("id,title,author,cover_url,reading_url,free_download_url,license,improvement_area").eq("active", true).neq("license", "commercial").order("title"),
     supabase.from("user_service_updates").select("reason,update:service_updates(title,url,published_at,ai_summary,excerpt)").eq("user_id", me.id).order("delivered_at", { ascending: false }).limit(1),
     supabase.from("accountability_events").select("id,period_type,performance_pct,level,auto_draw_at,checklist:checklists(title,kind),accountability_ledger(id)").eq("user_id", me.id).order("created_at", { ascending: false }).limit(10),
     supabase.from("accountability_ledger").select("category,quantity,status").eq("user_id", me.id).neq("status", "completed").order("assigned_at", { ascending: false }).limit(1),
@@ -50,7 +53,14 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
   let streak = 0;
   for (const s of streakSnaps.data ?? []) { if (s.overall_score !== null && Number(s.overall_score) >= 90) streak++; else if (s.overall_score !== null) break; }
   const q = quote.data?.[0];
-  const rd = reading.data?.[0] as unknown as { progress_pct: number; book: { title: string; author: string } } | undefined;
+  const shelf = (reading.data ?? []) as unknown as { book_id: string; progress_pct: number; status: string; book: ShelfBook }[];
+  const current = shelf.find((r) => r.status === "reading") ?? null;
+  const onList = new Set(shelf.map((r) => r.book_id));
+  const recs = ((recsQ.data ?? []) as unknown as ShelfRec[]).filter((r) => r.book && !onList.has(r.book.id));
+  // Book of the week: a free book that changes every Monday (same for everyone that week).
+  const free = ((freeBooks.data ?? []) as unknown as ShelfBook[]).filter((b) => !onList.has(b.id));
+  const weekNo = Math.floor((Date.parse(today + "T00:00:00Z") / 86_400_000 + 3) / 7);
+  const bookOfWeek = free.length ? free[weekNo % free.length]! : null;
   const up = update.data?.[0] as unknown as { reason: string; update: { title: string; url: string; published_at: string | null; ai_summary: string | null; excerpt: string | null } } | undefined;
   const led = recentLedger.data?.[0];
   const myAvatar = await avatarUrl(me.avatar_path);
@@ -163,19 +173,11 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
         <ButtonLink href="/profile" variant="outline" icon="edit">Edit unified profile</ButtonLink>
       </Card>
 
+      {/* Reading */}
+      <DashboardBooks reading={current ? { progress_pct: current.progress_pct, book: current.book } : null} recs={recs} bookOfWeek={bookOfWeek} />
+
       {/* Growth row */}
-      <div className="grid gap-5 lg:grid-cols-3">
-        <Card className="flex flex-col p-5">
-          <CardHeader eyebrow="Leadership reading" title="Currently reading" />
-          {rd ? (
-            <div className="mt-4 flex-1">
-              <div className="font-heading text-body-lg text-ink">{rd.book.title}</div>
-              <div className="text-body-sm text-muted-text">{rd.book.author}</div>
-              <div className="mt-3 flex items-center gap-2"><Progress value={rd.progress_pct} color="var(--color-accent-emerald)" /><span className="text-body-sm font-semibold">{rd.progress_pct}%</span></div>
-            </div>
-          ) : <p className="mt-4 flex-1 text-body-md text-muted-text">You&apos;re not reading anything right now.</p>}
-          <ButtonLink href="/books" variant="outline" size="sm" icon="menu_book" className="mt-4 self-start">{rd ? "Update progress" : "Browse recommendations"}</ButtonLink>
-        </Card>
+      <div className="grid gap-5 lg:grid-cols-2">
         <Card className="flex flex-col p-5">
           <CardHeader eyebrow="Service intelligence" title="Latest service update" />
           {up ? (
