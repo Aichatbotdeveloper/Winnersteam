@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
+import { CookieBanner } from "./CookieBanner";
 import hero from "@/assets/landing/hero-team.webp";
 import community from "@/assets/landing/community.webp";
 import celebration from "@/assets/landing/celebration.webp";
@@ -242,6 +243,7 @@ export function Landing() {
       </main>
 
       <SiteFooter />
+      <CookieBanner />
     </div>
   );
 }

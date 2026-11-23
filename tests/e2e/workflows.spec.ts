@@ -103,3 +103,19 @@ test("public website: signed-out visitors see the landing page", async ({ page }
   await expect(page).toHaveURL(/\/register$/);
   for (const p of ["/privacy", "/terms"]) expect((await page.request.get(p)).status()).toBe(200);
 });
+
+test("public website: cookie banner remembers the choice and can be reopened", async ({ page }) => {
+  await page.goto("/");
+  const banner = page.getByRole("region", { name: "Cookie notice" });
+  await expect(banner).toBeVisible();
+  await banner.getByRole("button", { name: "Essential only" }).click();
+  await expect(banner).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(banner).toBeHidden();
+  await page.getByRole("button", { name: "Cookie settings" }).click();
+  await expect(banner).toBeVisible();
+  await banner.getByRole("link", { name: "Read more" }).click();
+  await expect(page).toHaveURL(/\/privacy#cookies$/);
+  await expect(page.getByRole("heading", { name: "Cookies" })).toBeVisible();
+});

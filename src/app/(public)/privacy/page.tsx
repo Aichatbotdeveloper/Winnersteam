@@ -35,6 +35,18 @@ export default function PrivacyPage() {
         your records. We do not sell your personal information.
       </p>
 
+      <h2 id="cookies" className="scroll-mt-28">Cookies</h2>
+      <p>
+        Cookies are small files a website saves in your browser. Winners Team only uses essential cookies: they keep you
+        signed in and protect your account, so the platform cannot work without them. We do not use advertising or
+        tracking cookies.
+      </p>
+      <p>
+        The first time you visit our website, you can choose “Accept all” or “Essential only”. You can change your choice at
+        any time with the “Cookie settings” link at the bottom of the page. If we ever add optional cookies, such as visitor
+        statistics, they will only be used if you choose “Accept all”.
+      </p>
+
       <h2>Your choices and rights</h2>
       <ul>
         <li>You can view and update your profile at any time in your workspace.</li>

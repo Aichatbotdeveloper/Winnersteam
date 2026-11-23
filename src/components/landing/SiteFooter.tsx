@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CookieSettingsButton } from "./CookieBanner";
 
 const LINKS = [
   ["About", "/#about"],
@@ -27,6 +28,7 @@ export function SiteFooter() {
             {LINKS.map(([label, href]) => (
               <Link key={href} href={href} className="text-sm text-white/70 transition-colors hover:text-white">{label}</Link>
             ))}
+            <CookieSettingsButton className="text-sm text-white/70 transition-colors hover:text-white" />
           </nav>
         </div>
         <p className="mt-10 border-t border-white/10 pt-6 text-sm text-white/50">

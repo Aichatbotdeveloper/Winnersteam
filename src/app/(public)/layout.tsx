@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { SiteFooter } from "@/components/landing/SiteFooter";
+import { CookieBanner } from "@/components/landing/CookieBanner";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         </article>
       </main>
       <SiteFooter />
+      <CookieBanner />
     </div>
   );
 }
