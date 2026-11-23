@@ -3,7 +3,7 @@
 import Image, { type StaticImageData } from "next/image";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import heroTeam from "@/assets/landing/hero-team.webp";
-import heroMember from "@/assets/landing/hero-member.webp";
+import heroMember from "@/assets/landing/hero-member-sharp.webp";
 import heroGroup from "@/assets/landing/hero-group.webp";
 
 type Slide = { src: StaticImageData; alt: string; position: string };
@@ -11,7 +11,7 @@ type Slide = { src: StaticImageData; alt: string; position: string };
 /** Hero photos, in order. `position` keeps faces clear of the headline on phones and computers. */
 const SLIDES: Slide[] = [
   { src: heroTeam, alt: "Members of Winners Team together at an event", position: "object-[50%_25%]" },
-  { src: heroMember, alt: "A Winners Team member walking through the hall at an event", position: "object-[52%_30%] sm:object-[50%_35%]" },
+  { src: heroMember, alt: "A Winners Team member walking through the hall at an event", position: "object-[49%_30%] sm:object-[50%_35%]" },
   { src: heroGroup, alt: "Winners Team members standing together outdoors", position: "object-[50%_40%] sm:object-[50%_45%]" },
 ];
 
