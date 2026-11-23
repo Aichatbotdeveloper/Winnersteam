@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { CookieBanner } from "./CookieBanner";
-import hero from "@/assets/landing/hero-team.webp";
+import { HeroSlider } from "./HeroSlider";
 import community from "@/assets/landing/community.webp";
 import celebration from "@/assets/landing/celebration.webp";
 import ceoPortrait from "@/assets/landing/ceo-portrait.webp";
@@ -53,24 +53,9 @@ export function Landing() {
       <main>
         {/* Hero ------------------------------------------------------------ */}
         <section className="relative flex min-h-[100svh] items-end overflow-hidden bg-night sm:min-h-[640px] md:min-h-[760px] lg:h-[92vh] lg:max-h-[960px]">
-          {/* Phones: photo fills the top part so faces stay clear of the text. Larger screens: full bleed. */}
-          <div className="absolute inset-x-0 top-0 h-[62%] sm:h-full">
-            <Image
-              src={hero}
-              alt="Members of Winners Team together at an event"
-              fill
-              preload
-              quality={Q}
-              sizes="100vw"
-              placeholder="blur"
-              className="object-cover object-[50%_25%]"
-            />
-            {/* Overlays keep the faces visible at the top and the text readable at the bottom. */}
-            <div className="absolute inset-0 bg-gradient-to-t from-night via-night/40 to-night/10 sm:via-night/70" aria-hidden />
-            <div className="absolute inset-0 hidden bg-gradient-to-r from-night/70 via-transparent to-transparent sm:block" aria-hidden />
-          </div>
+          <HeroSlider quality={Q} />
 
-          <div className="relative mx-auto w-full max-w-6xl px-4 pb-12 pt-[52vw] sm:px-6 sm:pt-32 md:pb-20">
+          <div className="relative mx-auto w-full max-w-6xl px-4 pb-20 pt-[52vw] sm:px-6 sm:pt-32 md:pb-20">
             <div className="max-w-2xl">
               <Eyebrow tone="emerald">Winners Team</Eyebrow>
               <h1 className="font-heading text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl lg:text-6xl">
