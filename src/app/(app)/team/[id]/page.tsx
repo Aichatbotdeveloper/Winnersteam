@@ -116,7 +116,7 @@ export default async function MemberDetail({ params, searchParams }: { params: P
           {isSuper && ["approved", "deactivated", "removed"].includes(member.status) && <ActiveToggle userId={id} active={member.status === "approved"} name={member.full_name} />}
           {member.status !== "removed" && <RemoveMemberButton memberId={id} name={member.full_name} />}
         </> : undefined} />
-      {member.status !== "approved" && <p className="mb-4 rounded-lg bg-accent-amber/10 px-3 py-2 text-body-md text-[#b45309]">Account status: {member.status}{member.status_reason ? ` — ${member.status_reason}` : ""}</p>}
+      {member.status !== "approved" && <p className="mb-4 rounded-lg bg-accent-amber/10 px-3 py-2 text-body-md text-warning-text">Account status: {member.status}{member.status_reason ? ` — ${member.status_reason}` : ""}</p>}
       <Tabs active={tab} items={[
         { key: "performance", href: `${base}?tab=performance`, label: "Performance", icon: "monitoring" },
         { key: "work", href: `${base}?tab=work`, label: "Tasks & goals", icon: "checklist" },

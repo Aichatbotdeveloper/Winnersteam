@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cn } from "@/components/ui";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export const SITE_NAV = [
   ["About", "/#about"],
@@ -30,7 +31,7 @@ export function SiteHeader({ solid = false }: { solid?: boolean }) {
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
-        filled ? "border-b border-white/10 bg-ink/95 backdrop-blur" : "bg-transparent",
+        filled ? "border-b border-white/10 bg-night/95 backdrop-blur" : "bg-transparent",
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 md:h-20">
@@ -48,6 +49,7 @@ export function SiteHeader({ solid = false }: { solid?: boolean }) {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle tone="onDark" />
           <Link href="/login" className="rounded-md px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10">
             Sign in
           </Link>
@@ -56,9 +58,11 @@ export function SiteHeader({ solid = false }: { solid?: boolean }) {
           </Link>
         </div>
 
+        <div className="flex items-center gap-1 md:hidden">
+        <ThemeToggle tone="onDark" />
         <button
           type="button"
-          className="flex h-10 w-10 items-center justify-center rounded-md text-white hover:bg-white/10 md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-md text-white hover:bg-white/10"
           aria-expanded={open}
           aria-controls="site-menu"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -66,10 +70,11 @@ export function SiteHeader({ solid = false }: { solid?: boolean }) {
         >
           <span className="material-symbols-outlined" aria-hidden>{open ? "close" : "menu"}</span>
         </button>
+        </div>
       </div>
 
       {open && (
-        <div id="site-menu" className="border-t border-white/10 bg-ink px-4 pb-6 pt-2 md:hidden">
+        <div id="site-menu" className="border-t border-white/10 bg-night px-4 pb-6 pt-2 md:hidden">
           <nav aria-label="Mobile" className="flex flex-col">
             {SITE_NAV.map(([label, href]) => (
               <Link key={href} href={href} onClick={() => setOpen(false)} className="border-b border-white/10 py-3.5 text-base font-medium text-white/90">

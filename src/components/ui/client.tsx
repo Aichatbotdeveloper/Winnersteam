@@ -79,7 +79,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   }, [open]);
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) onClose(); }}
-      className={cn("m-auto w-[calc(100%-2rem)] rounded-xl border border-border-subtle bg-surface p-0 shadow-float backdrop:bg-ink/40", wide ? "max-w-2xl" : "max-w-lg")}>
+      className={cn("m-auto w-[calc(100%-2rem)] rounded-xl border border-border-subtle bg-surface p-0 shadow-float backdrop:bg-night/60", wide ? "max-w-2xl" : "max-w-lg")}>
       {open && (
         <div className="animate-fade-in">
           <div className="flex items-center justify-between border-b border-border-subtle px-5 py-3">

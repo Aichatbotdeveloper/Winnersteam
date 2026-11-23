@@ -81,7 +81,7 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="rounded-xl bg-accent-amber/10 px-4 py-2.5">
-              <div className="eyebrow !text-[#b45309]">Target streak</div>
+              <div className="eyebrow !text-warning-text">Target streak</div>
               <div className="flex items-center gap-1.5 font-heading text-heading-md text-ink"><Icon name="local_fire_department" className="text-accent-amber" />{streak}-day streak</div>
             </div>
             <div className="rounded-xl bg-surface-container-low px-4 py-2.5">
@@ -218,12 +218,12 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
       </div>
 
       {/* LEX banner */}
-      <section className="rounded-xl bg-primary p-5 text-on-primary shadow-float">
+      <section className="rounded-xl bg-obsidian p-5 text-white shadow-float dark:ring-1 dark:ring-white/10">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <LexIcon size={40} />
             <div>
-              <div className="flex items-center gap-2 font-heading text-heading-md text-on-primary">LEX Personal Copilot <span className="rounded bg-accent px-1.5 text-[10px] font-bold text-primary">READY</span></div>
+              <div className="flex items-center gap-2 font-heading text-heading-md text-white">LEX Personal Copilot <span className="rounded bg-accent px-1.5 text-[10px] font-bold text-obsidian">READY</span></div>
               <p className="text-body-sm text-faint-text">Ask how anything works — tasks, goals, scoring, accountability or your profile.</p>
             </div>
           </div>

@@ -27,7 +27,7 @@ export default async function AdministratorsPage() {
             <thead><tr><Th>Administrator</Th><Th>Team size</Th><Th>Status</Th><Th>Joined</Th><Th>Last active</Th><Th className="text-right">Actions</Th></tr></thead>
             <tbody>{(admins.data ?? []).map((a) => (
               <tr key={a.id}>
-                <Td><div className="flex items-center gap-2.5"><Avatar name={a.full_name} size={32} className="bg-primary" /><div><div className="font-medium text-ink">{a.full_name}</div><div className="text-body-sm text-muted-text">{a.email}{a.job_title ? ` · ${a.job_title}` : ""}</div></div></div></Td>
+                <Td><div className="flex items-center gap-2.5"><Avatar name={a.full_name} size={32} className="bg-obsidian" /><div><div className="font-medium text-ink">{a.full_name}</div><div className="text-body-sm text-muted-text">{a.email}{a.job_title ? ` · ${a.job_title}` : ""}</div></div></div></Td>
                 <Td>{Number(a.member_count)} members</Td>
                 <Td><Badge tone={a.status === "approved" ? "green" : "red"}>{a.status === "approved" ? "Active" : a.status}</Badge></Td>
                 <Td className="text-muted-text">{fmtDate(a.created_at)}</Td>

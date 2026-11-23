@@ -83,7 +83,7 @@ export default async function SuperAdminDashboard() {
             const v = s.length ? s.reduce((x, y) => x + y, 0) / s.length : null;
             return (
               <div key={a.id} className="rounded-xl border border-border-subtle bg-surface-alt/50 p-4">
-                <div className="flex items-center gap-2.5"><Avatar name={a.full_name} size={34} className="bg-primary" /><div className="min-w-0"><div className="truncate text-label-md text-ink">{a.full_name}</div><div className="text-body-sm text-muted-text">{Number(a.member_count)} members</div></div>
+                <div className="flex items-center gap-2.5"><Avatar name={a.full_name} size={34} className="bg-obsidian" /><div className="min-w-0"><div className="truncate text-label-md text-ink">{a.full_name}</div><div className="text-body-sm text-muted-text">{Number(a.member_count)} members</div></div>
                   <span className="ml-auto font-heading text-heading-md" style={{ color: scoreColor(v) }}>{pct(v)}</span></div>
                 <Progress value={v ?? 0} color={scoreColor(v)} className="mt-3" />
               </div>

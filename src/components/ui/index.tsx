@@ -68,7 +68,7 @@ const BADGE = {
   neutral: "bg-surface-alt text-muted-text",
   purple: "bg-surface-container-low text-secondary",
   green: "bg-accent-emerald/10 text-on-tertiary-container",
-  amber: "bg-accent-amber/10 text-[#b45309]",
+  amber: "bg-accent-amber/10 text-warning-text",
   red: "bg-accent-red/10 text-accent-red",
   blue: "bg-accent-blue/10 text-accent-blue",
   dark: "bg-primary text-on-primary",

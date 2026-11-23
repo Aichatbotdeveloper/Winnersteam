@@ -36,7 +36,7 @@ function TaskLine({ t, today, categories, readOnly, nowTime }: { t: TaskItem; to
     <li className={cn("flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 hover:border-border-subtle hover:bg-surface-alt/60", done && "bg-surface-alt/40")}>
       <button onClick={toggle} disabled={readOnly || locked || pending} aria-label={done ? `Mark "${t.title}" pending` : `Mark "${t.title}" completed`}
         className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
-          done ? "border-primary bg-primary text-white" : "border-border-strong bg-surface hover:border-secondary", (readOnly || locked) && "cursor-not-allowed opacity-60")}>
+          done ? "border-primary bg-primary text-on-primary" : "border-border-strong bg-surface hover:border-secondary", (readOnly || locked) && "cursor-not-allowed opacity-60")}>
         {done && <Icon name="check" className="text-[14px]" />}
       </button>
       <div className="min-w-0 flex-1">

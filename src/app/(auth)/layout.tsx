@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <nav className="flex items-center gap-1 text-label-md">
             <Link href="/" className="hidden rounded-lg px-3 py-2 text-body-text hover:bg-surface-container-low sm:inline-block">Home</Link>
             <Link href="/login" className="whitespace-nowrap rounded-lg px-3 py-2 text-body-text hover:bg-surface-container-low">Sign in</Link>
+            <ThemeToggle />
             <Link href="/register" className="whitespace-nowrap rounded-lg px-3 py-2 text-body-text hover:bg-surface-container-low">Register</Link>
           </nav>
         </div>

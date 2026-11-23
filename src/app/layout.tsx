@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { themeScript } from "@/components/theme/themeScript";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
@@ -10,12 +11,20 @@ export const metadata: Metadata = {
   openGraph: { title: "Winners Team", siteName: "Winners Team", images: ["/brand/winners-team-logo-512.png"] },
 };
 
-export const viewport: Viewport = { themeColor: "#080808", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#080808" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0d17" },
+  ],
+  width: "device-width", initialScale: 1,
+};
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-GB">
+    <html lang="en-GB" suppressHydrationWarning>
       <head>
+        {/* Applies the saved light/dark choice before the first paint (no flash). */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* Same font + icon families as the Google Stitch design system */}

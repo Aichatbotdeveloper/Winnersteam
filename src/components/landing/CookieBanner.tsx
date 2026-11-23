@@ -49,7 +49,7 @@ export function CookieBanner() {
 
   return (
     <div role="region" aria-label="Cookie notice" className="fixed inset-x-0 bottom-0 z-[60] p-3 sm:p-4">
-      <div className="mx-auto flex max-w-4xl flex-col gap-4 rounded-xl border border-white/10 bg-ink/95 p-5 text-white shadow-2xl backdrop-blur sm:flex-row sm:items-center sm:gap-6">
+      <div className="mx-auto flex max-w-4xl flex-col gap-4 rounded-xl border border-white/10 bg-night/95 p-5 text-white shadow-2xl backdrop-blur sm:flex-row sm:items-center sm:gap-6">
         <div className="flex gap-3">
           <span className="material-symbols-outlined mt-0.5 shrink-0 text-[22px] text-accent" aria-hidden>cookie</span>
           <p className="text-sm leading-relaxed text-white/85">

@@ -11,7 +11,7 @@ export function Wordmark({ dark = false, sub }: { dark?: boolean; sub?: string }
     <div className="flex items-center gap-2.5">
       <LogoMark size={36} />
       <div className="leading-tight">
-        <div className={cn("font-heading text-[17px] font-bold tracking-tight", dark ? "text-on-primary" : "text-ink")}>Winners Team</div>
+        <div className={cn("font-heading text-[17px] font-bold tracking-tight", dark ? "text-white" : "text-ink")}>Winners Team</div>
         {sub && <div className={cn("text-label-sm uppercase tracking-wider", dark ? "text-faint-text" : "text-muted-text")}>{sub}</div>}
       </div>
     </div>

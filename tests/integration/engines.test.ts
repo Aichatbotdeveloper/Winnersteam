@@ -168,7 +168,7 @@ describe("accountability engine", () => {
     const m = await createMember(superA.client, "acc-auto", admin.id);
     await pastTasks(m.id, yesterday, 3, 0);
     await service.rpc("cron_run_evaluations");
-    const { data: ev } = await service.from("accountability_events").select("id").eq("user_id", m.id).single();
+    const { data: ev } = await service.from("accountability_events").select("id").eq("user_id", m.id).eq("period_type", "daily").single();
     // simulate the window elapsing: the event table has no update trigger, so the service role may backdate it
     await service.from("accountability_events").update({ created_at: new Date(Date.now() - 48 * 3600e3).toISOString() }).eq("id", ev!.id);
     await service.rpc("cron_run_evaluations");

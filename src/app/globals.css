@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark mode is driven by <html data-theme="dark"> (set before paint in the root layout). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * Winners Team design tokens — ported 1:1 from the Google Stitch
  * "ClickUp-Productivity-System" (DESIGN.md + every exported screen's
@@ -66,6 +69,13 @@
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
   --color-on-error-container: #93000a;
+  --color-warning-text: #b45309;
+
+  /* Fixed dark surfaces that stay dark in both themes (sidebar, LEX, hero overlays). */
+  --color-night: #090c1d;
+  --color-obsidian: #080808;
+  --color-obsidian-container: #202020;
+  --color-on-obsidian-container: #898787;
 
   /* Stitch radii (exported screens use the compact scale) */
   --radius-sm: 0.125rem;
@@ -130,6 +140,57 @@
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: none; }
   }
+}
+
+/*
+ * Dark theme: same Stitch purple/green accents on deep navy surfaces.
+ * Only colours that must change are redefined; fixed-dark tokens above stay as they are.
+ */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #eceaf6;
+  --color-primary-container: #d3d0e4;
+  --color-on-primary: #0b0d17;
+  --color-on-primary-container: #4a4d5e;
+  --color-secondary: #7c6af0;
+  --color-secondary-container: #8f7ff5;
+  --color-secondary-fixed: #2c2463;
+  --color-secondary-fixed-dim: #3b3080;
+  --color-on-secondary-fixed: #e5deff;
+  --color-on-secondary-fixed-variant: #c8bfff;
+  --color-on-tertiary-container: #34e36a;
+  --color-on-tertiary-fixed-variant: #69ff89;
+  --color-link: #a99cff;
+  --color-canvas: #0b0d17;
+  --color-background: #0b0d17;
+  --color-surface: #141725;
+  --color-surface-alt: #1b1f30;
+  --color-surface-bright: #1b1f30;
+  --color-surface-dim: #33384f;
+  --color-surface-container-lowest: #0f121e;
+  --color-surface-container-low: #171a2a;
+  --color-surface-container: #1e2235;
+  --color-surface-container-high: #242840;
+  --color-surface-container-highest: #2a2f46;
+  --color-surface-variant: #2a2f46;
+  --color-on-background: #e6e7f2;
+  --color-on-surface: #e6e7f2;
+  --color-on-surface-variant: #b5b8c6;
+  --color-ink: #f3f4fa;
+  --color-body-text: #d6d8e3;
+  --color-muted-text: #a3a8b8;
+  --color-faint-text: #767b8d;
+  --color-border-subtle: #262a3d;
+  --color-border-strong: #383d55;
+  --color-outline: #8b8fa3;
+  --color-outline-variant: #383d55;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #4a1416;
+  --color-on-error-container: #ffdad6;
+  --color-warning-text: #fbbf24;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-float: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 @layer base {

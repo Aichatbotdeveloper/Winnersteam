@@ -22,7 +22,7 @@ export function WelcomeQuote({ quote, firstName }: { quote: Quote; firstName: st
   }
   if (!open || !quote) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/50 p-4" role="dialog" aria-modal="true" aria-labelledby="welcome-title" onClick={close}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-night/60 p-4" role="dialog" aria-modal="true" aria-labelledby="welcome-title" onClick={close}>
       <div className="w-full max-w-lg animate-fade-in rounded-xl bg-surface p-7 shadow-float" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <span className="rounded-md bg-surface-container-low px-2 py-1 text-label-sm uppercase tracking-wider text-secondary">Today&apos;s motivation · {quote.category.replace("_", " ")}</span>

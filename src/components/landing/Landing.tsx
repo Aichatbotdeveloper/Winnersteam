@@ -52,7 +52,7 @@ export function Landing() {
 
       <main>
         {/* Hero ------------------------------------------------------------ */}
-        <section className="relative flex min-h-[100svh] items-end overflow-hidden bg-ink sm:min-h-[640px] md:min-h-[760px] lg:h-[92vh] lg:max-h-[960px]">
+        <section className="relative flex min-h-[100svh] items-end overflow-hidden bg-night sm:min-h-[640px] md:min-h-[760px] lg:h-[92vh] lg:max-h-[960px]">
           {/* Phones: photo fills the top part so faces stay clear of the text. Larger screens: full bleed. */}
           <div className="absolute inset-x-0 top-0 h-[62%] sm:h-full">
             <Image
@@ -66,8 +66,8 @@ export function Landing() {
               className="object-cover object-[50%_25%]"
             />
             {/* Overlays keep the faces visible at the top and the text readable at the bottom. */}
-            <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/10 sm:via-ink/70" aria-hidden />
-            <div className="absolute inset-0 hidden bg-gradient-to-r from-ink/70 via-transparent to-transparent sm:block" aria-hidden />
+            <div className="absolute inset-0 bg-gradient-to-t from-night via-night/40 to-night/10 sm:via-night/70" aria-hidden />
+            <div className="absolute inset-0 hidden bg-gradient-to-r from-night/70 via-transparent to-transparent sm:block" aria-hidden />
           </div>
 
           <div className="relative mx-auto w-full max-w-6xl px-4 pb-12 pt-[52vw] sm:px-6 sm:pt-32 md:pb-20">
@@ -93,7 +93,7 @@ export function Landing() {
         </section>
 
         {/* About ----------------------------------------------------------- */}
-        <section id="about" className="scroll-mt-20 bg-white py-20 md:py-28">
+        <section id="about" className="scroll-mt-20 bg-surface py-20 md:py-28">
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
             <div>
               <Eyebrow>About Winners Team</Eyebrow>
@@ -137,7 +137,7 @@ export function Landing() {
             </div>
             <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="rounded-xl border border-border-subtle bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+                <li key={s.title} className="rounded-xl border border-border-subtle bg-surface p-6 shadow-sm transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between">
                     <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-white">
                       <span className="material-symbols-outlined text-[26px]" aria-hidden>{s.icon}</span>
@@ -153,7 +153,7 @@ export function Landing() {
         </section>
 
         {/* Culture --------------------------------------------------------- */}
-        <section className="bg-white py-20 md:py-28">
+        <section className="bg-surface py-20 md:py-28">
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
             <Image
               src={celebration}
@@ -175,7 +175,7 @@ export function Landing() {
         </section>
 
         {/* CEO ------------------------------------------------------------- */}
-        <section id="ceo" className="relative scroll-mt-20 overflow-hidden bg-ink py-20 text-white md:py-28">
+        <section id="ceo" className="relative scroll-mt-20 overflow-hidden bg-night py-20 text-white md:py-28">
           <div className="pointer-events-none absolute -right-40 -top-40 h-[480px] w-[480px] rounded-full bg-accent/10 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-40 -left-40 h-[480px] w-[480px] rounded-full bg-secondary/20 blur-3xl" aria-hidden />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[5fr_6fr] lg:gap-16">
@@ -194,7 +194,7 @@ export function Landing() {
                 quality={Q}
                 sizes="200px"
                 placeholder="blur"
-                className="absolute -bottom-8 -right-3 hidden aspect-[2/3] w-36 rounded-lg object-cover shadow-2xl ring-4 ring-ink sm:block lg:-right-8 md:w-44"
+                className="absolute -bottom-8 -right-3 hidden aspect-[2/3] w-36 rounded-lg object-cover shadow-2xl ring-4 ring-night sm:block lg:-right-8 md:w-44"
               />
             </div>
             <div className="mt-4 lg:mt-0">
@@ -227,7 +227,7 @@ export function Landing() {
             <ol className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {JOIN.map((s, i) => (
                 <li key={s.title} className="relative text-center">
-                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink font-heading text-xl font-bold text-white ring-8 ring-secondary/10">
+                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-night font-heading text-xl font-bold text-white ring-8 ring-secondary/10 dark:bg-secondary dark:ring-secondary/20">
                     {i + 1}
                   </span>
                   <h3 className="mt-5 font-heading text-lg font-bold text-ink">{s.title}</h3>

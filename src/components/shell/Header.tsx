@@ -6,6 +6,7 @@ import { Avatar, Icon } from "@/components/ui";
 import { ModalButton } from "@/components/ui/client";
 import { TaskForm, type TaskCategory } from "@/components/tasks/TaskForm";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { signOut } from "@/app/(auth)/actions";
 
 export function Header({ user, unread, categories, today, avatarUrl }: {
@@ -32,6 +33,7 @@ export function Header({ user, unread, categories, today, avatarUrl }: {
         <ModalButton label={<span className="hidden sm:inline">New Task</span>} title="New task" icon="add" size="sm" className="py-2">
           {(close) => <TaskForm categories={categories} today={today} onDone={close} />}
         </ModalButton>
+        <ThemeToggle />
         <NotificationBell userId={user.id} initialUnread={unread} />
         <div className="relative" ref={ref}>
           <button onClick={() => setMenu((m) => !m)} className="flex items-center gap-2 rounded-lg p-1 hover:bg-surface-alt" aria-haspopup="menu" aria-expanded={menu}>

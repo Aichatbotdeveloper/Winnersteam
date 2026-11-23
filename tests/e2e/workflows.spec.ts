@@ -119,3 +119,21 @@ test("public website: cookie banner remembers the choice and can be reopened", a
   await expect(page).toHaveURL(/\/privacy#cookies$/);
   await expect(page.getByRole("heading", { name: "Cookies" })).toBeVisible();
 });
+
+test("light/dark toggle applies immediately and is remembered", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/login");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: /Change theme/ }).click();
+  await page.getByRole("menuitemradio", { name: "Dark" }).click();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  // "System" follows the device setting.
+  await page.getByRole("button", { name: /Change theme/ }).click();
+  await page.getByRole("menuitemradio", { name: "System" }).click();
+  await expect(html).toHaveAttribute("data-theme", "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(html).toHaveAttribute("data-theme", "dark");
+});

@@ -23,7 +23,7 @@ export default async function RegistrationsPage({ searchParams }: { searchParams
     <>
       <PageHeader eyebrow="Governance & hierarchy" title="Registration approvals" description="Review new registrations. Approve a team member by assigning an administrator, or use “Make administrator” if the person should manage a team. E-mail verification is tracked separately from approval." />
       <Tabs active={v} items={[{ key: "pending", href: "/super-admin/registrations", label: "Pending", icon: "hourglass_top" }, { key: "approved", href: "/super-admin/registrations?view=approved", label: "Approved", icon: "check_circle" }, { key: "rejected", href: "/super-admin/registrations?view=rejected", label: "Rejected", icon: "block" }]} />
-      {adminList.length === 0 && v === "pending" && <p className="mb-4 rounded-lg bg-accent-amber/10 px-3 py-2 text-body-md text-[#b45309]">Invite at least one administrator before approving registrations — every member must be assigned.</p>}
+      {adminList.length === 0 && v === "pending" && <p className="mb-4 rounded-lg bg-accent-amber/10 px-3 py-2 text-body-md text-warning-text">Invite at least one administrator before approving registrations — every member must be assigned.</p>}
       <Card className="overflow-hidden">
         {(reqs.data ?? []).length === 0 ? <div className="p-5"><EmptyState icon="inbox" title={`No ${v} registrations`} /></div> : (
           <Table>

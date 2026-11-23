@@ -67,7 +67,7 @@ export function sectorLabel(cat: E["consequence_category"], qty: number | string
 export const LEVEL_STYLE: Record<E["accountability_level"], { label: string; cls: string }> = {
   none: { label: "Target achieved", cls: "bg-accent-emerald/10 text-on-tertiary-container" },
   low: { label: "Low", cls: "bg-accent-amber/10 text-accent-amber" },
-  moderate: { label: "Moderate", cls: "bg-accent-amber/15 text-[#b45309]" },
+  moderate: { label: "Moderate", cls: "bg-accent-amber/15 text-warning-text" },
   high: { label: "High", cls: "bg-accent-red/10 text-accent-red" },
 };
 

@@ -14,7 +14,7 @@ const LINKS = [
 
 export function SiteFooter() {
   return (
-    <footer className="bg-ink text-white">
+    <footer className="bg-night text-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
