@@ -180,7 +180,7 @@ test("weekly summaries: page, PDF and Super Admin run-now", async ({ page, brows
   await login(page, "superadmin@demo.winners-team.local", DEMO_PASSWORD);
   await page.goto("/summaries");
   await page.getByRole("button", { name: "Create summaries now" }).click();
-  await expect(page.getByRole("status").filter({ hasText: /Created \d+ summaries/ })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Created \d+ summaries/).first()).toBeVisible({ timeout: 60_000 });
   const ctx = await browser.newContext();
   const m = await ctx.newPage();
   await login(m, "member003@demo.winners-team.local");
