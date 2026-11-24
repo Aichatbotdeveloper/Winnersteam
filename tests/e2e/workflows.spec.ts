@@ -160,7 +160,7 @@ test("feedback: a visitor sends feedback and the Super Admin sees it and can dow
   await page.getByLabel("Your message").fill(msg);
   await page.getByRole("button", { name: "Send feedback" }).click();
   await expect(page.getByText(/Please enter your email|valid email/i).or(page.locator("input[name=email]:invalid"))).toBeVisible();
-  await page.getByLabel("Your email").fill("visitor@example.com");
+  await page.getByLabel("Your email").fill(`visitor${Date.now()}@example.com`);
   await page.getByRole("button", { name: "Send feedback" }).click();
   await expect(page.getByRole("heading", { name: "Thank you!" })).toBeVisible();
 
@@ -173,5 +173,24 @@ test("feedback: a visitor sends feedback and the Super Admin sees it and can dow
   expect(csv).toContain(msg);
   expect(csv).toContain("Something isn't working");
   // Not available to anyone else.
+  await ctx.close();
+});
+
+test("weekly summaries: page, PDF and Super Admin run-now", async ({ page, browser }) => {
+  await login(page, "superadmin@demo.winners-team.local", DEMO_PASSWORD);
+  await page.goto("/summaries");
+  await page.getByRole("button", { name: "Create summaries now" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Created \d+ summaries/ })).toBeVisible({ timeout: 60_000 });
+  const ctx = await browser.newContext();
+  const m = await ctx.newPage();
+  await login(m, "member003@demo.winners-team.local");
+  await m.goto("/summaries");
+  await expectNoAppError(m);
+  const pdfLink = m.getByRole("link", { name: "Download PDF" });
+  if (await pdfLink.count()) {
+    const res = await m.request.get((await pdfLink.getAttribute("href"))!);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("application/pdf");
+  }
   await ctx.close();
 });

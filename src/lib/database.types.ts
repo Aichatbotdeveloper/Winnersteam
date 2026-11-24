@@ -687,6 +687,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"performance_summaries": {
+                  Row: {
+                    "ai_text": string | null,"ai_used": boolean,"created_at": string,"delivered": boolean,"id": string,"period_end": string,"period_start": string,"period_type": string,"scope": string,"stats": NonNullable<Json>,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ai_text"?: string | null,"ai_used"?: boolean,"created_at"?: string,"delivered"?: boolean,"id"?: string,"period_end": string,"period_start": string,"period_type": string,"scope": string,"stats": NonNullable<Json>,"user_id": string
+                  }
+                  Update: {
+                    "ai_text"?: string | null,"ai_used"?: boolean,"created_at"?: string,"delivered"?: boolean,"id"?: string,"period_end"?: string,"period_start"?: string,"period_type"?: string,"scope"?: string,"stats"?: NonNullable<Json>,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "performance_summaries_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"profile_change_log": {
                   Row: {
                     "changed_by": string | null,"changes": NonNullable<Json>,"created_at": string,"id": number,"profile_id": string,"section": string
@@ -1222,6 +1242,9 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: {
               "author": string,"category": string,"id": string,"source": string,"text": string
             }[]
+                           },
+"notify_summary_ready":
+{ Args: { "p_body": string,"p_period_start": string,"p_period_type": string,"p_summary": string,"p_title": string,"p_user": string }; Returns: undefined
                            },
 "org_today":
 { Args: Record<PropertyKey, never>; Returns: string

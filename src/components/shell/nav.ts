@@ -38,6 +38,7 @@ export function navFor(role: Role): NavSection[] {
         { href: "/super-admin", label: "Executive Dashboard", icon: "dashboard" },
         { href: "/super-admin/analytics", label: "Organisation Analytics", icon: "insights" },
         { href: "/reports", label: "Reports & Exports", icon: "summarize" },
+        { href: "/summaries", label: "Weekly & Monthly Summaries", icon: "auto_awesome" },
       ] },
       { title: "Governance & Hierarchy", items: [
         { href: "/super-admin/registrations", label: "Pending Registrations", icon: "how_to_reg", badgeKey: "pending" },
@@ -61,6 +62,7 @@ export function navFor(role: Role): NavSection[] {
         { href: "/admin", label: "Team Dashboard", icon: "dashboard" },
         { href: "/team", label: "My Team Members", icon: "groups" },
         { href: "/reports", label: "Team Reports", icon: "insights" },
+        { href: "/summaries", label: "Weekly & Monthly Summaries", icon: "auto_awesome" },
       ] },
       // Administrators also get their own personal workspace (same tools as members).
       { title: "My Workspace", items: [
@@ -81,6 +83,7 @@ export function navFor(role: Role): NavSection[] {
       { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
       { href: "/performance", label: "My Performance", icon: "monitoring" },
       { href: "/reports", label: "My Reports", icon: "summarize" },
+      { href: "/summaries", label: "Weekly & Monthly Summaries", icon: "auto_awesome" },
     ] },
     productivity,
     growth(role),
