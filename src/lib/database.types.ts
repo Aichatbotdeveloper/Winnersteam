@@ -375,6 +375,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"complaints": {
+                  Row: {
+                    "anonymous": boolean,"attachment_path": string | null,"body": string,"category": string,"code_hash": string,"created_at": string,"id": string,"private_notes": string | null,"replied_at": string | null,"reply": string | null,"status": string,"updated_at": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "anonymous": boolean,"attachment_path"?: string | null,"body": string,"category": string,"code_hash": string,"created_at": string,"id"?: string,"private_notes"?: string | null,"replied_at"?: string | null,"reply"?: string | null,"status"?: string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "anonymous"?: boolean,"attachment_path"?: string | null,"body"?: string,"category"?: string,"code_hash"?: string,"created_at"?: string,"id"?: string,"private_notes"?: string | null,"replied_at"?: string | null,"reply"?: string | null,"status"?: string,"updated_at"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "complaints_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"cron_tokens": {
                   Row: {
                     "created_at": string,"token": string
@@ -388,6 +408,52 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"event_rsvps": {
+                  Row: {
+                    "event_id": string,"response": string,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "event_id": string,"response": string,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "event_id"?: string,"response"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "event_rsvps_event_id_fkey"
+      columns: ["event_id"]
+isOneToOne: false
+      referencedRelation: "events"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "event_rsvps_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"events": {
+                  Row: {
+                    "audience": string,"created_at": string,"created_by": string,"description": string | null,"hour_reminded": boolean,"id": string,"image_path": string | null,"last_reminder_on": string | null,"location": string | null,"starts_at": string,"status": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "audience"?: string,"created_at"?: string,"created_by": string,"description"?: string | null,"hour_reminded"?: boolean,"id"?: string,"image_path"?: string | null,"last_reminder_on"?: string | null,"location"?: string | null,"starts_at": string,"status"?: string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "audience"?: string,"created_at"?: string,"created_by"?: string,"description"?: string | null,"hour_reminded"?: boolean,"id"?: string,"image_path"?: string | null,"last_reminder_on"?: string | null,"location"?: string | null,"starts_at"?: string,"status"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "events_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"feedback": {
                   Row: {
@@ -1095,6 +1161,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"update_posts": {
+                  Row: {
+                    "attachment_path": string | null,"audience": string | null,"author_id": string,"body": string,"created_at": string,"id": string,"kind": string,"link": string | null,"published_at": string | null,"recipients": number | null,"review_note": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": string,"title": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attachment_path"?: string | null,"audience"?: string | null,"author_id": string,"body": string,"created_at"?: string,"id"?: string,"kind": string,"link"?: string | null,"published_at"?: string | null,"recipients"?: number | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"title": string
+                  }
+                  Update: {
+                    "attachment_path"?: string | null,"audience"?: string | null,"author_id"?: string,"body"?: string,"created_at"?: string,"id"?: string,"kind"?: string,"link"?: string | null,"published_at"?: string | null,"recipients"?: number | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: string,"title"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "update_posts_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "update_posts_reviewed_by_fkey"
+      columns: ["reviewed_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"user_service_updates": {
                   Row: {
                     "delivered_at": string,"read_at": string | null,"reason": string | null,"saved_at": string | null,"update_id": string,"user_id": string
@@ -1161,6 +1253,14 @@ isOneToOne: false
 "bootstrap_super_admin":
 { Args: { "p_email": string }; Returns: undefined
                            },
+"cancel_event":
+{ Args: { "p_id": string,"p_reason"?: string }; Returns: undefined
+                           },
+"complaint_status":
+{ Args: { "p_code": string }; Returns: {
+              "category": string,"lodged": string,"replied_at": string,"reply": string,"status": string
+            }[]
+                           },
 "consequence_unit":
 { Args: { "p_cat": Database["public"]['Enums']["consequence_category"] }; Returns: string
                            },
@@ -1222,6 +1322,9 @@ isOneToOne: false
 "make_administrator":
 { Args: { "p_user": string }; Returns: undefined
                            },
+"manage_complaint":
+{ Args: { "p_id": string,"p_notes"?: string,"p_reply"?: string,"p_status": string }; Returns: undefined
+                           },
 "mark_all_notifications_read":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
@@ -1231,6 +1334,11 @@ isOneToOne: false
 "my_administrator":
 { Args: Record<PropertyKey, never>; Returns: {
               "full_name": string,"id": string,"job_title": string
+            }[]
+                           },
+"my_complaints":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "body": string,"category": string,"created_at": string,"id": string,"replied_at": string,"reply": string,"status": string
             }[]
                            },
 "my_weaknesses":
@@ -1271,11 +1379,20 @@ isOneToOne: false
 "remove_team_member":
 { Args: { "p_member": string,"p_reason": string }; Returns: undefined
                            },
+"review_update":
+{ Args: { "p_audience"?: string,"p_body"?: string,"p_email"?: boolean,"p_id": string,"p_note"?: string,"p_publish": boolean,"p_title"?: string }; Returns: number
+                           },
 "revoke_admin_invitation":
 { Args: { "p_invitation": string }; Returns: undefined
                            },
+"rsvp_event":
+{ Args: { "p_id": string,"p_response": string }; Returns: undefined
+                           },
 "run_evaluations_now":
 { Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"save_event":
+{ Args: { "p_audience"?: string,"p_description": string,"p_email"?: boolean,"p_id": string,"p_image_path"?: string,"p_location": string,"p_starts_at": string,"p_title": string }; Returns: string
                            },
 "search_knowledge_base":
 { Args: { "p_limit"?: number,"p_query": string }; Returns: {
@@ -1308,8 +1425,14 @@ isOneToOne: false
 "submit_checklist":
 { Args: { "p_id": string }; Returns: Json
                            },
+"submit_complaint":
+{ Args: { "p_anonymous": boolean,"p_body": string,"p_category": string }; Returns: Json
+                           },
 "submit_fine_payment":
 { Args: { "p_ledger": string,"p_note"?: string,"p_receipt_path": string }; Returns: undefined
+                           },
+"submit_update":
+{ Args: { "p_attachment_path"?: string,"p_body": string,"p_kind": string,"p_link"?: string,"p_title": string }; Returns: string
                            },
 "sync_my_checklists":
 { Args: Record<PropertyKey, never>; Returns: Json

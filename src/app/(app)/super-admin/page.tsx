@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UpcomingEvents } from "@/components/posts/UpcomingEvents";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -64,6 +65,7 @@ export default async function SuperAdminDashboard() {
         </div>
         {q && <p className="mt-4 rounded-lg bg-surface-alt px-4 py-2.5 text-body-md italic text-ink">“{q.text}” <span className="not-italic text-muted-text">— {q.author}</span></p>}
       </Card>
+      <UpcomingEvents />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Total accounts" value={all.length} sub={`${active.filter((p) => p.role === "administrator").length} admins · ${active.filter((p) => p.role === "team_member").length} active members`} icon="group" href="/super-admin/users" />

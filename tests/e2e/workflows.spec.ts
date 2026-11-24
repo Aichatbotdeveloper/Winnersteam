@@ -194,3 +194,69 @@ test("weekly summaries: page, PDF and Super Admin run-now", async ({ page, brows
   }
   await ctx.close();
 });
+
+test("events, updates box and complaints work end to end", async ({ page, browser }) => {
+  page.on("dialog", (d) => d.accept());
+  const stamp = Date.now();
+  // Super Admin posts an event (no e-mail).
+  await login(page, "superadmin@demo.winners-team.local", DEMO_PASSWORD);
+  await page.goto("/events");
+  await page.getByRole("button", { name: "New event" }).click();
+  const dlg = page.getByRole("dialog");
+  await dlg.locator("input[name=title]").fill(`E2E meeting ${stamp}`);
+  await dlg.locator("input[name=location]").fill("Main hall");
+  await dlg.getByLabel("Also send the first notice by e-mail").uncheck();
+  await dlg.getByRole("button", { name: "Post event" }).click();
+  await expect(page.getByRole("heading", { name: `E2E meeting ${stamp}` })).toBeVisible();
+
+  // A member sees it, answers, shares an update and lodges an anonymous complaint.
+  const ctx = await browser.newContext();
+  const m = await ctx.newPage();
+  m.on("dialog", (d) => d.accept());
+  await login(m, "member003@demo.winners-team.local");
+  await m.goto("/events");
+  const card = m.locator("section.card").filter({ hasText: `E2E meeting ${stamp}` });
+  await card.getByRole("button", { name: "I'll attend" }).click();
+  await expect(card.getByText("You're attending")).toBeVisible();
+  await m.goto("/updates?tab=share");
+  await m.locator("input[name=title]").fill(`E2E update ${stamp}`);
+  await m.locator("textarea[name=body]").fill("A useful update for everyone");
+  await m.getByRole("button", { name: "Send for review" }).click();
+  await expect(m.getByText(`E2E update ${stamp}`)).toBeVisible();
+  await m.goto("/complaints");
+  await m.locator("select[name=category]").selectOption("manipulation");
+  await m.locator("textarea[name=body]").fill(`E2E anonymous complaint ${stamp} about scores.`);
+  await m.locator("input[name=anonymous]").check();
+  await m.getByRole("button", { name: "Send complaint" }).click();
+  await expect(m.getByRole("heading", { name: "Your complaint has been sent" })).toBeVisible({ timeout: 15_000 });
+  const code = (await m.locator("span.font-mono").first().textContent())!.trim();
+  expect(code).toMatch(/^WT-/);
+
+  // An administrator cannot open the complaints page.
+  const actx = await browser.newContext();
+  const a = await actx.newPage();
+  await login(a, "admin001@demo.winners-team.local");
+  await a.goto("/super-admin/complaints");
+  await expect(a).not.toHaveURL(/super-admin\/complaints/);
+
+  // The Super Admin publishes the update and sees the complaint (anonymous), then replies.
+  await page.goto("/updates?tab=inbox");
+  const u = page.locator("section.card").filter({ hasText: `E2E update ${stamp}` });
+  await u.getByRole("button", { name: "Review & publish" }).click();
+  await page.getByRole("dialog").getByLabel("Also send by e-mail").uncheck();
+  await page.getByRole("dialog").getByRole("button", { name: /Publish to/ }).click();
+  await expect(page.getByText(/Published to \d+ people/).first()).toBeVisible({ timeout: 30_000 });
+  await page.goto("/updates");
+  await expect(page.getByText(`E2E update ${stamp}`)).toBeVisible();
+  await page.goto("/super-admin/complaints");
+  const c = page.locator("section.card").filter({ hasText: `E2E anonymous complaint ${stamp}` });
+  await expect(c.locator("span", { hasText: /^visibility_offAnonymous$/ })).toBeVisible();
+  await expect(c.getByText("Demo Member 003")).toHaveCount(0);
+  await c.getByRole("button", { name: "Update" }).click();
+  await page.getByRole("dialog").locator("textarea[name=reply]").fill("Thanks, we are checking.");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Saved.").first()).toBeVisible();
+  await m.goto(`/complaints?code=${encodeURIComponent(code)}`);
+  await expect(m.getByText("Thanks, we are checking.")).toBeVisible();
+  await ctx.close(); await actx.close();
+});

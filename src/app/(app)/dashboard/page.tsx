@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UpcomingEvents } from "@/components/posts/UpcomingEvents";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireUser, homeFor } from "@/lib/auth";
@@ -112,6 +113,8 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
           ))}
         </section>
       )}
+
+      <UpcomingEvents />
 
       {/* Performance */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">

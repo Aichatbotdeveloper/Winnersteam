@@ -22,6 +22,17 @@ const growth = (role: Role): NavSection => ({
   ],
 });
 
+const community = (role: Role): NavSection => ({
+  title: "Community",
+  items: [
+    { href: "/events", label: "Events & Meetings", icon: "event" },
+    { href: role === "super_admin" ? "/updates?tab=inbox" : "/updates", label: role === "super_admin" ? "Team Updates (review)" : "Team Updates", icon: "campaign" },
+    role === "super_admin"
+      ? { href: "/super-admin/complaints", label: "Complaints", icon: "report" }
+      : { href: "/complaints", label: "Lodge a Complaint", icon: "report" },
+  ],
+});
+
 const account: NavSection = {
   title: "Account",
   items: [
@@ -47,6 +58,7 @@ export function navFor(role: Role): NavSection[] {
         { href: "/super-admin/users", label: "User Management", icon: "manage_accounts" },
       ] },
       growth(role),
+      community(role),
       { title: "System", items: [
         { href: "/settings", label: "System Settings", icon: "tune" },
         { href: "/settings/quotes", label: "Motivational Quotes", icon: "format_quote" },
@@ -75,6 +87,7 @@ export function navFor(role: Role): NavSection[] {
         { href: "/audit-logs", label: "Team Audit Log", icon: "policy" },
       ] },
       growth(role),
+      community(role),
       account,
     ];
   }
@@ -87,6 +100,7 @@ export function navFor(role: Role): NavSection[] {
     ] },
     productivity,
     growth(role),
+    community(role),
     account,
   ];
 }
