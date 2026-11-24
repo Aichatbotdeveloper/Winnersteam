@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge, ButtonLink, Card, CardHeader, EmptyState, Icon, PageHeader, Pagination, StatTile, Table, Td, Th, cn } from "@/components/ui";
 import { SpinWheel } from "@/components/accountability/SpinWheel";
 import { AccommodationToggle, LedgerStatusForm } from "@/components/accountability/Forms";
+import { ConfirmPayment, PayFineButton, type FinePaymentRow, type PayeeDetails } from "@/components/accountability/FinePayment";
 import { CATEGORY_LABEL, CONSEQUENCE_COLOR, CONSEQUENCE_ICON, CONSEQUENCE_LABEL, CONSEQUENCE_LIMITS, LEVEL_STYLE, consequenceText } from "@/lib/labels";
 import { fmtDate, fmtDateTime, naira, pct } from "@/lib/format";
 import { checklistLabel, fmtDeadline, type ChecklistKind } from "@/lib/checklists";
@@ -23,7 +24,7 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
 
   // Ledger (RLS scopes rows: own / assigned team / organisation)
   let lq = supabase.from("accountability_ledger")
-    .select("*, event:accountability_events(period_type,period_start,performance_pct,level,triggering_category,checklist:checklists(title,kind,deadline)), member:profiles!accountability_ledger_user_id_fkey(full_name)", { count: "exact" })
+    .select("*, event:accountability_events(period_type,period_start,performance_pct,level,triggering_category,checklist:checklists(title,kind,deadline)), member:profiles!accountability_ledger_user_id_fkey(full_name), payment:fine_payments(status,reason,amount,payee_snapshot,receipt_path,payee_id)", { count: "exact" })
     .order("assigned_at", { ascending: false }).range((page - 1) * PAGE, page * PAGE - 1);
   if (sp.status && ["assigned", "in_progress", "completed"].includes(sp.status)) lq = lq.eq("status", sp.status as "assigned");
   if (sp.category && Object.keys(CONSEQUENCE_LABEL).includes(sp.category)) lq = lq.eq("category", sp.category as "frog_jumps");
@@ -36,6 +37,20 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
     supabase.from("accountability_ledger").select("status,category,quantity"),
   ]);
   const s = settings.data!;
+  // Fine payments (trial): the account fines are paid into, and receipts waiting for confirmation.
+  const [finesSetting, payeeQ] = await Promise.all([
+    supabase.from("system_settings").select("value").eq("key", "fines.payments_enabled").maybeSingle(),
+    supabase.from("admin_payment_details").select("admin_id,account_name,account_number,bank_name"),
+  ]);
+  const finesOn = finesSetting.data?.value === true;
+  const payeeRows = payeeQ.data ?? [];
+  const myPayee: PayeeDetails | null = isMember ? payeeRows[0] ?? null : null;
+  const myOwnDetails = payeeRows.find((d) => d.admin_id === me.id) ?? null;
+  type Pay = FinePaymentRow & { receipt_path: string; payee_id: string };
+  const payOf = (l: { payment: unknown }) => (Array.isArray(l.payment) ? l.payment[0] ?? null : l.payment ?? null) as Pay | null;
+  const toSign = (ledger.data ?? []).map(payOf).filter((p): p is Pay => Boolean(p && p.status === "submitted")).map((p) => p.receipt_path);
+  const signed = !isMember && toSign.length ? (await supabase.storage.from("fine-receipts").createSignedUrls(toSign, 3600)).data ?? [] : [];
+  const receiptUrl = new Map(signed.map((x) => [x.path ?? "", x.signedUrl]));
   type Ev = { id: string; period_type: string; period_start: string; performance_pct: number; level: "low" | "moderate" | "high"; triggering_category: keyof typeof CATEGORY_LABEL;
     auto_draw_at: string | null; checklist: { title: string; kind: ChecklistKind } | null; accountability_ledger: { id: string; revealed_at: string | null; winning_index: number } | null };
   const events = ((openEvents.data ?? []) as unknown as (Ev & { accountability_ledger: Ev["accountability_ledger"] | Ev["accountability_ledger"][] })[])
@@ -60,6 +75,12 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
           <ButtonLink href={`/api/reports/export?type=accountability&format=csv`} variant="outline" icon="download">Export CSV</ButtonLink>
         </>} />
 
+      {finesOn && me.role === "administrator" && !myOwnDetails && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-amber/40 bg-accent-amber/10 p-4">
+          <span className="flex items-center gap-2 text-body-md text-ink"><Icon name="account_balance" className="text-accent-amber" />Add your bank details so your team members can pay fines to you.</span>
+          <ButtonLink href="/profile#payment-details" size="sm" variant="secondary" icon="edit">Add payment details</ButtonLink>
+        </div>
+      )}
       {isMember && (
         <>
           {due && (
@@ -171,7 +192,14 @@ export default async function AccountabilityPage({ searchParams }: { searchParam
                       </Td>
                       <Td className="whitespace-nowrap text-body-sm text-muted-text">{fmtDateTime(l.assigned_at)}<div>{l.selected_by === "user_spin" ? "Spun by member" : "Auto-drawn by system"}</div></Td>
                       <Td><Badge tone={l.status === "completed" ? "green" : l.status === "in_progress" ? "blue" : "amber"} dot>{l.status.replace("_", " ")}</Badge>{l.completion_note && <div className="mt-1 max-w-48 truncate text-body-sm text-muted-text">“{l.completion_note}”</div>}</Td>
-                      <Td>{l.status !== "completed" ? <LedgerStatusForm id={l.id} status={l.status} /> : <span className="text-body-sm text-muted-text">{fmtDate(l.completed_at)}</span>}</Td>
+                      <Td>{(() => {
+                        const pay = payOf(l);
+                        if (finesOn && l.category === "financial_fine") {
+                          if (isMember && l.status !== "completed") return <PayFineButton ledgerId={l.id} amount={Number(l.quantity)} payee={myPayee} payment={pay} />;
+                          if (!isMember && pay) return <ConfirmPayment ledgerId={l.id} receiptUrl={receiptUrl.get(pay.receipt_path) ?? null} payment={pay} />;
+                        }
+                        return l.status !== "completed" ? <LedgerStatusForm id={l.id} status={l.status} /> : <span className="text-body-sm text-muted-text">{fmtDate(l.completed_at)}</span>;
+                      })()}</Td>
                     </tr>
                   );
                 })}

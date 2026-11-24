@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge, Card, CardHeader, Field, Icon, PageHeader, Table, Tabs, Td, Th } from "@/components/ui";
 import { ActionForm, ConfirmAction, ModalButton, SubmitButton } from "@/components/ui/client";
 import * as A from "@/server/actions/settings";
+import * as F from "@/server/actions/fines";
 import { CATEGORY_LABEL, CONSEQUENCE_COLOR, CONSEQUENCE_LABEL, CONSEQUENCE_LIMITS, consequenceText } from "@/lib/labels";
 import { daysAgoIso, fmtDateTime } from "@/lib/format";
 import { serverEnv, env } from "@/lib/env";
@@ -90,12 +91,14 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
   }
 
   if (section === "accountability") {
-    const [set, opts, recent] = await Promise.all([
+    const [set, opts, recent, finesQ] = await Promise.all([
       supabase.from("accountability_settings").select("*").single(),
       supabase.from("accountability_options").select("*").order("category").order("quantity"),
       supabase.from("accountability_ledger").select("category").gte("assigned_at", daysAgoIso(30)),
+      supabase.from("system_settings").select("value").eq("key", "fines.payments_enabled").maybeSingle(),
     ]);
     const s = set.data!;
+    const finesOn = finesQ.data?.value === true;
     const dist = new Map<string, number>();
     for (const r of recent.data ?? []) dist.set(r.category, (dist.get(r.category) ?? 0) + 1);
     const optionForm = (o?: NonNullable<typeof opts.data>[number]) => (
@@ -129,6 +132,14 @@ export default async function SettingsPage({ params }: { params: Promise<{ secti
               <Field label="Spin window after a deadline (minutes)" hint="If the member has not spun by then, the system spins for them."><input name="grace_minutes" type="number" min={5} max={240} defaultValue={s.grace_minutes} className="input w-32" /></Field>
               <p className="flex gap-1.5 rounded-lg bg-surface-alt px-3 py-2 text-body-sm text-muted-text"><Icon name="info" className="text-[16px]" />Selected consequences are assigned immediately — there is no approval or sign-off step.</p>
               <div className="flex justify-end"><SubmitButton icon="save">Save</SubmitButton></div>
+            </ActionForm>
+          </Card>
+          <Card className="p-5">
+            <CardHeader icon="payments" title="Fine payments (trial)" />
+            <p className="mt-2 text-body-md text-muted-text">Members pay financial fines by transfer to their administrator&apos;s account and upload a receipt; the administrator confirms. Switch off to hide it everywhere.</p>
+            <ActionForm action={F.setFinePaymentsEnabled} className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <Check name="enabled" label="Members can pay fines to their administrator" checked={finesOn} />
+              <SubmitButton size="sm" icon="save">Save</SubmitButton>
             </ActionForm>
           </Card>
           <Card className="p-5">

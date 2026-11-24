@@ -185,6 +185,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"admin_payment_details": {
+                  Row: {
+                    "account_name": string,"account_number": string,"admin_id": string,"bank_name": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "account_name": string,"account_number": string,"admin_id": string,"bank_name": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "account_name"?: string,"account_number"?: string,"admin_id"?: string,"bank_name"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "admin_payment_details_admin_id_fkey"
+      columns: ["admin_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"administrator_invitations": {
                   Row: {
                     "accepted_at": string | null,"created_at": string,"email": string,"expires_at": string,"full_name": string,"id": string,"invited_by": string,"job_title": string | null,"profile_id": string | null,"revoked_at": string | null
@@ -383,6 +403,44 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "feedback_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"fine_payments": {
+                  Row: {
+                    "amount": number,"decided_at": string | null,"decided_by": string | null,"ledger_id": string,"note": string | null,"payee_id": string,"payee_snapshot": NonNullable<Json>,"reason": string | null,"receipt_path": string,"status": string,"submitted_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"decided_at"?: string | null,"decided_by"?: string | null,"ledger_id": string,"note"?: string | null,"payee_id": string,"payee_snapshot": NonNullable<Json>,"reason"?: string | null,"receipt_path": string,"status"?: string,"submitted_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "amount"?: number,"decided_at"?: string | null,"decided_by"?: string | null,"ledger_id"?: string,"note"?: string | null,"payee_id"?: string,"payee_snapshot"?: NonNullable<Json>,"reason"?: string | null,"receipt_path"?: string,"status"?: string,"submitted_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "fine_payments_decided_by_fkey"
+      columns: ["decided_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "fine_payments_ledger_id_fkey"
+      columns: ["ledger_id"]
+isOneToOne: true
+      referencedRelation: "accountability_ledger"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "fine_payments_payee_id_fkey"
+      columns: ["payee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "fine_payments_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
@@ -1116,6 +1174,9 @@ isOneToOne: false
 "cron_sweep_checklists":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
+"decide_fine_payment":
+{ Args: { "p_ledger": string,"p_reason"?: string,"p_received": boolean }; Returns: undefined
+                           },
 "delete_checklist":
 { Args: { "p_id": string }; Returns: undefined
                            },
@@ -1207,6 +1268,9 @@ isOneToOne: false
 "set_account_active":
 { Args: { "p_active": boolean,"p_reason"?: string,"p_user": string }; Returns: undefined
                            },
+"set_payment_details":
+{ Args: { "p_account_name": string,"p_account_number": string,"p_bank_name": string }; Returns: undefined
+                           },
 "set_physical_accommodation":
 { Args: { "p_enabled": boolean,"p_note"?: string }; Returns: undefined
                            },
@@ -1215,6 +1279,9 @@ isOneToOne: false
                            },
 "submit_checklist":
 { Args: { "p_id": string }; Returns: Json
+                           },
+"submit_fine_payment":
+{ Args: { "p_ledger": string,"p_note"?: string,"p_receipt_path": string }; Returns: undefined
                            },
 "sync_my_checklists":
 { Args: Record<PropertyKey, never>; Returns: Json

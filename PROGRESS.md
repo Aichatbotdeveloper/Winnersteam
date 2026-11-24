@@ -55,6 +55,7 @@ Last updated: 22 Nov 2026
 - Service updates: 18 approved sources active across 9 categories (confirmed fetching in production); articles delivered by each member's service categories, with an instant 30-day catch-up when a member adds a service and AI summaries added gradually in the background.
 - All planned integrations are live.
 - E-mail quota (Resend free plan ≈100/day): routine reminders, deadline alerts and daily performance summaries go in the app and by push only; monthly-goal reminders and monthly-goal deadlines are still e-mailed (migration 0017). If Resend replies "limit reached" (HTTP 429), e-mails wait and are sent on a later run; anything still waiting after 3 days is dropped as out of date.
+- Fine payments (trial, migration 0020): administrators add bank details; a member with a financial fine pays by transfer, taps "I've paid" with a receipt, and their administrator confirms (or marks not received). Nothing is deducted automatically. Super Admin can switch it off in Settings → Accountability.
 - Feedback ("Talk to the developer"): round floating button on the website and in the app opens a form (visitors must give an email; members are recognised). Stored in Supabase, shown on the Super Admin's Feedback page with a CSV download, announced in the app and by push (migration 0019). Spam protection: hidden bot trap and 5 messages per hour per person.
 - Books: real covers (archive.org / Open Library) with a generated fallback (migration 0016).
 
