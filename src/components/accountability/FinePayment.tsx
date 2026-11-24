@@ -5,6 +5,7 @@ import { Badge, Icon } from "@/components/ui";
 import { ActionForm, ConfirmAction, ModalButton, SubmitButton, toast } from "@/components/ui/client";
 import { decideFinePayment, submitFinePayment } from "@/server/actions/fines";
 import { naira } from "@/lib/format";
+import { shrinkOnSelect } from "@/lib/shrinkImage";
 
 export type PayeeDetails = { account_name: string; account_number: string; bank_name: string };
 export type FinePaymentRow = { status: "submitted" | "confirmed" | "rejected"; reason: string | null; amount: number; payee_snapshot: PayeeDetails };
@@ -44,8 +45,8 @@ export function PayFineButton({ ledgerId, amount, payee, payment }: { ledgerId: 
           </div>
           <ActionForm action={submitFinePayment} className="space-y-3">
             <input type="hidden" name="ledger_id" value={ledgerId} />
-            <label className="block"><span className="label">Payment receipt <span className="font-normal text-muted-text">(screenshot or PDF, up to 5 MB)</span></span>
-              <input type="file" name="receipt" required accept="image/png,image/jpeg,image/webp,application/pdf" className="input file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-on-secondary" /></label>
+            <label className="block"><span className="label">Payment receipt <span className="font-normal text-muted-text">(screenshot or photo, or a PDF up to 2 MB)</span></span>
+              <input type="file" name="receipt" required accept="image/png,image/jpeg,image/webp,application/pdf" onChange={shrinkOnSelect(1600)} className="input file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-on-secondary" /></label>
             <label className="block"><span className="label">Note <span className="font-normal text-muted-text">(optional)</span></span>
               <input name="note" maxLength={500} placeholder="e.g. Paid from my OPay at 4:10 PM" className="input" /></label>
             <p className="flex gap-1.5 rounded-lg bg-surface-container-low px-3 py-2 text-body-sm text-muted-text"><Icon name="info" className="text-[16px]" />Nothing is taken from your account by Winners Team. You pay by transfer yourself, and your administrator confirms it.</p>

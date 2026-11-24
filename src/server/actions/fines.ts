@@ -34,7 +34,8 @@ export async function submitFinePayment(_: ActionResult, fd: FormData): Promise<
     const file = fd.get("receipt");
     if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Upload a screenshot or PDF of your payment receipt." };
     if (!RECEIPT[file.type]) return { ok: false, message: "Use a PNG, JPEG or WebP image, or a PDF." };
-    if (file.size > 5 * 1024 * 1024) return { ok: false, message: "The receipt must be 5 MB or smaller." };
+    if (file.type === "application/pdf" && file.size > 2 * 1024 * 1024) return { ok: false, message: "PDF receipts must be 2 MB or smaller. A screenshot works too." };
+    if (file.size > 5 * 1024 * 1024) return { ok: false, message: "The receipt must be 5 MB or smaller." }; // photos are shrunk in the browser first
     const bytes = new Uint8Array(await file.arrayBuffer());
     const ok = (bytes[0] === 0x89 && bytes[1] === 0x50) || (bytes[0] === 0xff && bytes[1] === 0xd8)
       || (bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50)

@@ -6,9 +6,11 @@ type Actor = { id: string; email: string; client: SupabaseClient };
 let superA: Actor, admin: Actor, otherAdmin: Actor;
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
+let day = 0;
 async function fine(member: Actor, amount = 1000) {
+  const d = new Date(Date.UTC(2025, 0, 1) + ++day * 86_400_000).toISOString().slice(0, 10);
   const { data: ev, error } = await service.from("accountability_events").insert({
-    user_id: member.id, period_type: "daily", period_start: "2026-01-0" + (Math.floor(Math.random() * 9) + 1), period_end: "2026-01-01",
+    user_id: member.id, period_type: "daily", period_start: d, period_end: d,
     performance_pct: 40, level: "high", triggering_category: "daily_todo" }).select("id").single();
   if (error) throw error;
   const { data: l, error: e2 } = await service.from("accountability_ledger").insert({
@@ -29,6 +31,7 @@ beforeAll(async () => {
   admin = await createAdministrator(superA.client, "fineadmin");
   otherAdmin = await createAdministrator(superA.client, "fineadmin2");
   await service.from("system_settings").update({ value: true }).eq("key", "fines.payments_enabled");
+  await admin.client.rpc("set_payment_details", { p_account_name: "Ade Admin", p_account_number: "8123456789", p_bank_name: "OPay" });
 });
 
 describe("fine payments (trial)", () => {
@@ -88,5 +91,38 @@ describe("fine payments (trial)", () => {
     expect((await superA.client.from("system_settings").update({ value: false }).eq("key", "fines.payments_enabled").select()).error).toBeNull();
     expect((await m.client.rpc("submit_fine_payment", { p_ledger: ledger, p_receipt_path: await receipt(m) })).error?.message).toMatch(/switched off/);
     await service.from("system_settings").update({ value: true }).eq("key", "fines.payments_enabled");
+  });
+});
+
+describe("receipt clean-up", () => {
+  it("removes receipts 60 days after a decision and replaced receipts, but never ones awaiting confirmation", async () => {
+    const m = await createMember(superA.client, "fine-clean", admin.id);
+    const old = await fine(m), waiting = await fine(m), recent = await fine(m), again = await fine(m);
+    const pOld = await receipt(m), pWaiting = await receipt(m), pRecent = await receipt(m), pFirst = await receipt(m);
+    for (const [l, p] of [[old, pOld], [waiting, pWaiting], [recent, pRecent], [again, pFirst]] as const)
+      expect((await m.client.rpc("submit_fine_payment", { p_ledger: l, p_receipt_path: p })).error).toBeNull();
+    await admin.client.rpc("decide_fine_payment", { p_ledger: old, p_received: true });
+    await admin.client.rpc("decide_fine_payment", { p_ledger: recent, p_received: true });
+    await admin.client.rpc("decide_fine_payment", { p_ledger: again, p_received: false, p_reason: "Not seen yet" });
+    const pSecond = await receipt(m);
+    await m.client.rpc("submit_fine_payment", { p_ledger: again, p_receipt_path: pSecond });
+    // the first decision was 61 days ago; the others are recent
+    await service.from("fine_payments").update({ decided_at: new Date(Date.now() - 61 * 86_400_000).toISOString() }).eq("ledger_id", old);
+    // a long-waiting receipt is still kept
+    await service.from("fine_payments").update({ submitted_at: new Date(Date.now() - 90 * 86_400_000).toISOString() }).eq("ledger_id", waiting);
+
+    const { data, error } = await service.rpc("receipts_to_delete", { p_days: 60, p_min_age_minutes: 0 });
+    expect(error).toBeNull();
+    const paths = new Set((data ?? []).map((r: { path: string }) => r.path));
+    expect(paths.has(pOld)).toBe(true);      // decided 61 days ago
+    expect(paths.has(pFirst)).toBe(true);    // replaced by "Pay again"
+    expect(paths.has(pWaiting)).toBe(false); // still waiting for confirmation
+    expect(paths.has(pRecent)).toBe(false);  // decided recently
+    expect(paths.has(pSecond)).toBe(false);  // the current, waiting receipt
+    // and the default one-day grace protects uploads that haven't been submitted yet
+    const fresh = await receipt(m);
+    expect(((await service.rpc("receipts_to_delete", {})).data ?? []).some((r: { path: string }) => r.path === fresh)).toBe(false);
+    // members cannot call it
+    expect((await m.client.rpc("receipts_to_delete", {})).error).not.toBeNull();
   });
 });

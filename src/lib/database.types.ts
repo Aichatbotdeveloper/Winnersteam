@@ -411,14 +411,14 @@ isOneToOne: false
                   ]
                 },"fine_payments": {
                   Row: {
-                    "amount": number,"decided_at": string | null,"decided_by": string | null,"ledger_id": string,"note": string | null,"payee_id": string,"payee_snapshot": NonNullable<Json>,"reason": string | null,"receipt_path": string,"status": string,"submitted_at": string,"user_id": string
+                    "amount": number,"decided_at": string | null,"decided_by": string | null,"ledger_id": string,"note": string | null,"payee_id": string,"payee_snapshot": NonNullable<Json>,"reason": string | null,"receipt_deleted_at": string | null,"receipt_path": string,"status": string,"submitted_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"decided_at"?: string | null,"decided_by"?: string | null,"ledger_id": string,"note"?: string | null,"payee_id": string,"payee_snapshot": NonNullable<Json>,"reason"?: string | null,"receipt_path": string,"status"?: string,"submitted_at"?: string,"user_id": string
+                    "amount": number,"decided_at"?: string | null,"decided_by"?: string | null,"ledger_id": string,"note"?: string | null,"payee_id": string,"payee_snapshot": NonNullable<Json>,"reason"?: string | null,"receipt_deleted_at"?: string | null,"receipt_path": string,"status"?: string,"submitted_at"?: string,"user_id": string
                   }
                   Update: {
-                    "amount"?: number,"decided_at"?: string | null,"decided_by"?: string | null,"ledger_id"?: string,"note"?: string | null,"payee_id"?: string,"payee_snapshot"?: NonNullable<Json>,"reason"?: string | null,"receipt_path"?: string,"status"?: string,"submitted_at"?: string,"user_id"?: string
+                    "amount"?: number,"decided_at"?: string | null,"decided_by"?: string | null,"ledger_id"?: string,"note"?: string | null,"payee_id"?: string,"payee_snapshot"?: NonNullable<Json>,"reason"?: string | null,"receipt_deleted_at"?: string | null,"receipt_path"?: string,"status"?: string,"submitted_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -1233,6 +1233,11 @@ isOneToOne: false
                            },
 "period_bounds":
 { Args: { "p_date": string,"p_type": Database["public"]['Enums']["period_type"] }; Returns: Record<string, unknown>
+                           },
+"receipts_to_delete":
+{ Args: { "p_days"?: number,"p_min_age_minutes"?: number }; Returns: {
+              "path": string
+            }[]
                            },
 "refresh_my_recommendations":
 { Args: Record<PropertyKey, never>; Returns: number

@@ -2,6 +2,7 @@
 
 import { ActionForm, ConfirmAction, ModalButton, SubmitButton } from "@/components/ui/client";
 import { Field } from "@/components/ui";
+import { shrinkOnSelect } from "@/lib/shrinkImage";
 import { deleteService, removeAvatar, saveService, updateBasicInfo, updateProfessionalInfo, uploadAvatar } from "@/server/actions/profile";
 
 type P = { full_name: string; phone: string | null; job_title: string | null; team_name: string | null; team_leader_name: string | null;
@@ -71,7 +72,7 @@ export function AvatarForm({ hasAvatar }: { hasAvatar: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ActionForm action={uploadAvatar} className="flex flex-wrap items-center gap-2">
-        <input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" required className="max-w-56 text-body-sm file:mr-2 file:rounded-lg file:border-0 file:bg-surface-container-low file:px-3 file:py-1.5 file:text-body-sm file:font-semibold file:text-secondary" aria-label="Profile photo" />
+        <input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" required onChange={shrinkOnSelect(512)} className="max-w-56 text-body-sm file:mr-2 file:rounded-lg file:border-0 file:bg-surface-container-low file:px-3 file:py-1.5 file:text-body-sm file:font-semibold file:text-secondary" aria-label="Profile photo" />
         <SubmitButton size="sm" variant="outline" icon="upload">Upload photo</SubmitButton>
       </ActionForm>
       {hasAvatar && <ActionForm action={removeAvatar}><SubmitButton size="sm" variant="ghost" icon="delete">Remove</SubmitButton></ActionForm>}
